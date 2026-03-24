@@ -18,7 +18,6 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Prefetch JTP-3 repo into local model cache.")
     parser.add_argument("--repo-id", default="RedRocket/JTP-3")
     parser.add_argument("--root", type=Path, required=True)
-    parser.add_argument("--token", default=None, help="HF token. Default reads HF_TOKEN env.")
     parser.add_argument("--force", action="store_true")
     parser.add_argument("--no-progress", action="store_true")
     parser.add_argument("--no-prefetch-openclip", action="store_true")
@@ -42,13 +41,13 @@ def main() -> int:
         os.environ.setdefault("HF_HUB_DISABLE_PROGRESS_BARS", "1")
     else:
         os.environ.pop("HF_HUB_DISABLE_PROGRESS_BARS", None)
+    token = os.getenv("HF_TOKEN")
 
     if _exists_jtp3_local(local_repo_dir) and not args.force:
         print("[prefetch_jtp3] JTP-3 already exists, skip.")
     else:
         from huggingface_hub import snapshot_download
 
-        token = args.token or os.getenv("HF_TOKEN")
         print(f"[prefetch_jtp3] repo: {args.repo_id}")
         print(f"[prefetch_jtp3] local_repo_dir: {local_repo_dir}")
         snapshot_download(

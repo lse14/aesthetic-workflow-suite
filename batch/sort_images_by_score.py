@@ -14,6 +14,69 @@ BATCH_INFER_PATH = BATCH_ROOT / "runtime" / "batch_infer.py"
 FALLBACK_BATCH_INFER_PATH = FALLBACK_APP_ROOT / "infer_ui" / "scripts" / "batch_infer.py"
 TARGET_DIMS = ("aesthetic", "composition", "color", "sexual")
 DEFAULT_EXTS = [".jpg", ".jpeg", ".png", ".webp", ".bmp"]
+ZH_EN = {
+    "批量图片分拣（单维度）": "Batch Image Sorter (Single Dimension)",
+    "请选择模型与图片目录。": "Please select model and image folder.",
+    "模型路径": "Model Path",
+    "图片文件夹": "Image Folder",
+    "打分维度": "Score Dimension",
+    "遍历子文件夹": "Recursive",
+    "输出文件夹(可选)": "Output Folder (Optional)",
+    "推理设备": "Inference Device",
+    "批大小(batch_size)": "Batch Size",
+    "按显存推荐": "Recommend by VRAM",
+    "分桶分制": "Score Scale",
+    "目标域阈值": "In-domain Threshold",
+    "进度: 0/0": "Progress: 0/0",
+    "处理中，请稍候...": "Processing, please wait...",
+    "已暂停，点击继续恢复。": "Paused. Click Resume to continue.",
+    "正在终止，稍后将仅输出已完成打分的图像。": "Stopping. Only completed images will be exported.",
+    "阶段: done 进度: 100%": "Phase: done Progress: 100%",
+    "处理完成。": "Completed.",
+    "处理失败。": "Failed.",
+    "提示": "Tip",
+    "完成": "Completed",
+    "失败": "Failed",
+    "未安装 torch，无法读取显存。": "Torch is not installed, cannot read VRAM.",
+    "CPU 模式推荐 batch_size=4。": "CPU mode recommends batch_size=4.",
+    "未检测到 CUDA，已回退推荐 batch_size=4。": "CUDA not detected, fallback recommendation batch_size=4.",
+    "检测到显存约 ": "Detected VRAM about ",
+    "，推荐 batch_size=": ", recommended batch_size=",
+    "请先选择模型路径。": "Please select a model path first.",
+    "请先选择图片文件夹。": "Please select an image folder first.",
+    "请选择合法的打分维度。": "Please select a valid score dimension.",
+    "请选择合法的推理设备。": "Please select a valid inference device.",
+    "请选择 5 分制或 10 分制。": "Please select score scale 5 or 10.",
+    "batch_size 必须是正整数。": "batch_size must be a positive integer.",
+    "目标域阈值必须是 0~1 之间的小数。": "Threshold must be a float between 0 and 1.",
+    "阶段: ": "Phase: ",
+    " 进度: ": " Progress: ",
+    "维度: ": "Dimension: ",
+    "输出目录: ": "Output: ",
+    "分拣目录: ": "Organized: ",
+    "统计: ": "Stats: ",
+    "任务已终止：仅输出已完成打分的图像结果。": "Task stopped: only completed images are exported.",
+    "浏览": "Browse",
+    "开始处理": "Start",
+    "暂停": "Pause",
+    "继续": "Resume",
+    "终止": "Stop",
+    "选择模型文件": "Select Model File",
+    "选择图片文件夹": "Select Image Folder",
+    "选择输出文件夹": "Select Output Folder",
+}
+EN_ZH = {v: k for k, v in ZH_EN.items()}
+
+
+def _translate_text(text: str, lang: str) -> str:
+    out = str(text)
+    if lang == "en":
+        mapping = ZH_EN
+    else:
+        mapping = EN_ZH
+    for k in sorted(mapping.keys(), key=len, reverse=True):
+        out = out.replace(k, mapping[k])
+    return out
 
 
 def _load_batch_infer_module():
@@ -170,7 +233,12 @@ def _run_gui() -> None:
         raise RuntimeError("Tkinter is unavailable on this Python environment.") from e
 
     root = tk.Tk()
-    root.title("批量图片分拣（单维度）")
+    lang_var = tk.StringVar(value="zh")
+
+    def tr(text: str) -> str:
+        return _translate_text(text, lang_var.get())
+
+    root.title(tr("批量图片分拣（单维度）"))
     root.geometry("760x520")
     root.resizable(False, False)
 
@@ -185,55 +253,61 @@ def _run_gui() -> None:
     recursive_var = tk.BooleanVar(value=True)
     running_var = tk.BooleanVar(value=False)
     paused_var = tk.BooleanVar(value=False)
-    status_var = tk.StringVar(value="请选择模型与图片目录。")
+    status_var = tk.StringVar(value=tr("请选择模型与图片目录。"))
     pause_event = threading.Event()
     stop_event = threading.Event()
 
     frm = ttk.Frame(root, padding=12)
     frm.pack(fill=tk.BOTH, expand=True)
 
-    ttk.Label(frm, text="模型路径").grid(row=0, column=0, sticky="w", pady=6)
+    lbl_ckpt = ttk.Label(frm, text=tr("模型路径"))
+    lbl_ckpt.grid(row=0, column=0, sticky="w", pady=6)
     ckpt_entry = ttk.Entry(frm, textvariable=ckpt_var, width=72)
     ckpt_entry.grid(row=0, column=1, sticky="ew", padx=6)
 
     def pick_ckpt() -> None:
         p = filedialog.askopenfilename(
-            title="选择模型文件",
+            title=tr("选择模型文件"),
             filetypes=[("Model", "*.safetensors *.pt *.pth *.ckpt"), ("All files", "*.*")],
         )
         if p:
             ckpt_var.set(p)
 
-    ttk.Label(frm, text="图片文件夹").grid(row=1, column=0, sticky="w", pady=6)
+    lbl_input = ttk.Label(frm, text=tr("图片文件夹"))
+    lbl_input.grid(row=1, column=0, sticky="w", pady=6)
     input_entry = ttk.Entry(frm, textvariable=input_var, width=72)
     input_entry.grid(row=1, column=1, sticky="ew", padx=6)
 
     def pick_input() -> None:
-        p = filedialog.askdirectory(title="选择图片文件夹")
+        p = filedialog.askdirectory(title=tr("选择图片文件夹"))
         if p:
             input_var.set(p)
 
     def pick_output() -> None:
-        p = filedialog.askdirectory(title="选择输出文件夹")
+        p = filedialog.askdirectory(title=tr("选择输出文件夹"))
         if p:
             output_var.set(p)
 
-    ttk.Label(frm, text="打分维度").grid(row=2, column=0, sticky="w", pady=6)
+    lbl_dim = ttk.Label(frm, text=tr("打分维度"))
+    lbl_dim.grid(row=2, column=0, sticky="w", pady=6)
     dim_combo = ttk.Combobox(frm, textvariable=dim_var, values=list(TARGET_DIMS), state="readonly", width=20)
     dim_combo.grid(row=2, column=1, sticky="w", padx=6)
 
-    recursive_ck = ttk.Checkbutton(frm, text="遍历子文件夹", variable=recursive_var)
+    recursive_ck = ttk.Checkbutton(frm, text=tr("遍历子文件夹"), variable=recursive_var)
     recursive_ck.grid(row=2, column=1, sticky="e", padx=6)
 
-    ttk.Label(frm, text="输出文件夹(可选)").grid(row=3, column=0, sticky="w", pady=6)
+    lbl_output = ttk.Label(frm, text=tr("输出文件夹(可选)"))
+    lbl_output.grid(row=3, column=0, sticky="w", pady=6)
     output_entry = ttk.Entry(frm, textvariable=output_var, width=72)
     output_entry.grid(row=3, column=1, sticky="ew", padx=6)
 
-    ttk.Label(frm, text="推理设备").grid(row=4, column=0, sticky="w", pady=6)
+    lbl_device = ttk.Label(frm, text=tr("推理设备"))
+    lbl_device.grid(row=4, column=0, sticky="w", pady=6)
     device_combo = ttk.Combobox(frm, textvariable=device_var, values=["auto", "cuda", "cpu"], state="readonly", width=20)
     device_combo.grid(row=4, column=1, sticky="w", padx=6)
 
-    ttk.Label(frm, text="批大小(batch_size)").grid(row=5, column=0, sticky="w", pady=6)
+    lbl_batch = ttk.Label(frm, text=tr("批大小(batch_size)"))
+    lbl_batch.grid(row=5, column=0, sticky="w", pady=6)
     batch_entry = ttk.Entry(frm, textvariable=batch_var, width=20)
     batch_entry.grid(row=5, column=1, sticky="w", padx=6)
 
@@ -241,16 +315,16 @@ def _run_gui() -> None:
         try:
             import torch
         except Exception:
-            messagebox.showwarning("提示", "未安装 torch，无法读取显存。")
+            messagebox.showwarning(tr("提示"), tr("未安装 torch，无法读取显存。"))
             return
         dev = device_var.get().strip().lower()
         if dev == "cpu":
             batch_var.set("4")
-            status_var.set("CPU 模式推荐 batch_size=4。")
+            status_var.set(tr("CPU 模式推荐 batch_size=4。"))
             return
         if not torch.cuda.is_available():
             batch_var.set("4")
-            status_var.set("未检测到 CUDA，已回退推荐 batch_size=4。")
+            status_var.set(tr("未检测到 CUDA，已回退推荐 batch_size=4。"))
             return
         total_gb = torch.cuda.get_device_properties(0).total_memory / (1024 ** 3)
         if total_gb <= 6:
@@ -268,21 +342,23 @@ def _run_gui() -> None:
         else:
             rec = 32
         batch_var.set(str(rec))
-        status_var.set(f"检测到显存约 {total_gb:.1f} GB，推荐 batch_size={rec}。")
+        status_var.set(tr(f"检测到显存约 {total_gb:.1f} GB，推荐 batch_size={rec}。"))
 
-    btn_recommend_batch = ttk.Button(frm, text="按显存推荐", command=recommend_batch_by_vram)
+    btn_recommend_batch = ttk.Button(frm, text=tr("按显存推荐"), command=recommend_batch_by_vram)
     btn_recommend_batch.grid(row=5, column=2, sticky="ew")
 
-    ttk.Label(frm, text="分桶分制").grid(row=6, column=0, sticky="w", pady=6)
+    lbl_scale = ttk.Label(frm, text=tr("分桶分制"))
+    lbl_scale.grid(row=6, column=0, sticky="w", pady=6)
     score_scale_combo = ttk.Combobox(frm, textvariable=score_scale_var, values=["5", "10"], state="readonly", width=20)
     score_scale_combo.grid(row=6, column=1, sticky="w", padx=6)
 
-    ttk.Label(frm, text="目标域阈值").grid(row=7, column=0, sticky="w", pady=6)
+    lbl_threshold = ttk.Label(frm, text=tr("目标域阈值"))
+    lbl_threshold.grid(row=7, column=0, sticky="w", pady=6)
     special_threshold_entry = ttk.Entry(frm, textvariable=special_threshold_var, width=20)
     special_threshold_entry.grid(row=7, column=1, sticky="w", padx=6)
 
     progress_var = tk.DoubleVar(value=0.0)
-    progress_text_var = tk.StringVar(value="进度: 0/0")
+    progress_text_var = tk.StringVar(value=tr("进度: 0/0"))
     progress_bar = ttk.Progressbar(frm, variable=progress_var, maximum=100.0, mode="determinate")
     progress_bar.grid(row=8, column=0, columnspan=3, sticky="ew", pady=(6, 2))
     progress_text_lbl = ttk.Label(frm, textvariable=progress_text_var, foreground="#334155")
@@ -337,7 +413,7 @@ def _run_gui() -> None:
             return
         pause_event.set()
         paused_var.set(True)
-        status_var.set("已暂停，点击继续恢复。")
+        status_var.set(tr("已暂停，点击继续恢复。"))
         sync_pause_resume_state()
 
     def resume_job() -> None:
@@ -345,7 +421,7 @@ def _run_gui() -> None:
             return
         pause_event.clear()
         paused_var.set(False)
-        status_var.set("处理中，请稍候...")
+        status_var.set(tr("处理中，请稍候..."))
         sync_pause_resume_state()
 
     def stop_job() -> None:
@@ -354,19 +430,19 @@ def _run_gui() -> None:
         stop_event.set()
         pause_event.clear()
         paused_var.set(False)
-        status_var.set("正在终止，稍后将仅输出已完成打分的图像。")
+        status_var.set(tr("正在终止，稍后将仅输出已完成打分的图像。"))
         sync_pause_resume_state()
 
     def handle_result(ok: bool, payload: str) -> None:
         set_running(False)
         if ok:
             progress_var.set(100.0)
-            progress_text_var.set("阶段: done 进度: 100%")
-            status_var.set("处理完成。")
-            messagebox.showinfo("完成", payload)
+            progress_text_var.set(tr("阶段: done 进度: 100%"))
+            status_var.set(tr("处理完成。"))
+            messagebox.showinfo(tr("完成"), tr(payload))
         else:
-            status_var.set("处理失败。")
-            messagebox.showerror("失败", payload)
+            status_var.set(tr("处理失败。"))
+            messagebox.showerror(tr("失败"), tr(payload))
 
     def run_job() -> None:
         if running_var.get():
@@ -380,33 +456,33 @@ def _run_gui() -> None:
         batch_raw = batch_var.get().strip()
         special_threshold_raw = special_threshold_var.get().strip()
         if not checkpoint_raw:
-            messagebox.showwarning("提示", "请先选择模型路径。")
+            messagebox.showwarning(tr("提示"), tr("请先选择模型路径。"))
             return
         if not input_dir_raw:
-            messagebox.showwarning("提示", "请先选择图片文件夹。")
+            messagebox.showwarning(tr("提示"), tr("请先选择图片文件夹。"))
             return
         if dim not in TARGET_DIMS:
-            messagebox.showwarning("提示", "请选择合法的打分维度。")
+            messagebox.showwarning(tr("提示"), tr("请选择合法的打分维度。"))
             return
         if dev not in {"auto", "cuda", "cpu"}:
-            messagebox.showwarning("提示", "请选择合法的推理设备。")
+            messagebox.showwarning(tr("提示"), tr("请选择合法的推理设备。"))
             return
         if score_scale not in {"5", "10"}:
-            messagebox.showwarning("提示", "请选择 5 分制或 10 分制。")
+            messagebox.showwarning(tr("提示"), tr("请选择 5 分制或 10 分制。"))
             return
         try:
             batch_size = int(batch_raw)
             if batch_size <= 0:
                 raise ValueError
         except Exception:
-            messagebox.showwarning("提示", "batch_size 必须是正整数。")
+            messagebox.showwarning(tr("提示"), tr("batch_size 必须是正整数。"))
             return
         try:
             special_threshold = float(special_threshold_raw)
             if special_threshold < 0.0 or special_threshold > 1.0:
                 raise ValueError
         except Exception:
-            messagebox.showwarning("提示", "目标域阈值必须是 0~1 之间的小数。")
+            messagebox.showwarning(tr("提示"), tr("目标域阈值必须是 0~1 之间的小数。"))
             return
 
         set_running(True)
@@ -414,9 +490,9 @@ def _run_gui() -> None:
         stop_event.clear()
         paused_var.set(False)
         sync_pause_resume_state()
-        status_var.set("处理中，请稍候...")
+        status_var.set(tr("处理中，请稍候..."))
         progress_var.set(0.0)
-        progress_text_var.set("进度: 0/0")
+        progress_text_var.set(tr("进度: 0/0"))
 
         def worker() -> None:
             try:
@@ -434,7 +510,7 @@ def _run_gui() -> None:
                         0,
                         lambda: (
                             progress_var.set(max(0.0, min(100.0, pct))),
-                            progress_text_var.set(f"阶段: {phase} 进度: {done}/{total} ETA: {eta_txt}"),
+                            progress_text_var.set(tr(f"阶段: {phase} 进度: {done}/{total} ETA: {eta_txt}")),
                         ),
                     )
 
@@ -471,20 +547,47 @@ def _run_gui() -> None:
 
         threading.Thread(target=worker, daemon=True).start()
 
-    btn_pick_ckpt = ttk.Button(frm, text="浏览", command=pick_ckpt)
+    btn_pick_ckpt = ttk.Button(frm, text=tr("浏览"), command=pick_ckpt)
     btn_pick_ckpt.grid(row=0, column=2, sticky="ew")
-    btn_pick_input = ttk.Button(frm, text="浏览", command=pick_input)
+    btn_pick_input = ttk.Button(frm, text=tr("浏览"), command=pick_input)
     btn_pick_input.grid(row=1, column=2, sticky="ew")
-    btn_pick_output = ttk.Button(frm, text="浏览", command=pick_output)
+    btn_pick_output = ttk.Button(frm, text=tr("浏览"), command=pick_output)
     btn_pick_output.grid(row=3, column=2, sticky="ew")
-    btn_run = ttk.Button(frm, text="开始处理", command=run_job)
+    btn_run = ttk.Button(frm, text=tr("开始处理"), command=run_job)
     btn_run.grid(row=11, column=0, columnspan=3, sticky="ew", pady=(8, 0))
-    btn_pause = ttk.Button(frm, text="暂停", command=pause_job, state="disabled")
+    btn_pause = ttk.Button(frm, text=tr("暂停"), command=pause_job, state="disabled")
     btn_pause.grid(row=12, column=0, sticky="ew", pady=(6, 0))
-    btn_resume = ttk.Button(frm, text="继续", command=resume_job, state="disabled")
+    btn_resume = ttk.Button(frm, text=tr("继续"), command=resume_job, state="disabled")
     btn_resume.grid(row=12, column=1, sticky="ew", padx=6, pady=(6, 0))
-    btn_stop = ttk.Button(frm, text="终止", command=stop_job, state="disabled")
+    btn_stop = ttk.Button(frm, text=tr("终止"), command=stop_job, state="disabled")
     btn_stop.grid(row=12, column=2, sticky="ew", pady=(6, 0))
+
+    def toggle_lang() -> None:
+        lang_var.set("en" if lang_var.get() == "zh" else "zh")
+        root.title(tr("批量图片分拣（单维度）"))
+        lbl_ckpt.configure(text=tr("模型路径"))
+        lbl_input.configure(text=tr("图片文件夹"))
+        lbl_dim.configure(text=tr("打分维度"))
+        recursive_ck.configure(text=tr("遍历子文件夹"))
+        lbl_output.configure(text=tr("输出文件夹(可选)"))
+        lbl_device.configure(text=tr("推理设备"))
+        lbl_batch.configure(text=tr("批大小(batch_size)"))
+        btn_recommend_batch.configure(text=tr("按显存推荐"))
+        lbl_scale.configure(text=tr("分桶分制"))
+        lbl_threshold.configure(text=tr("目标域阈值"))
+        btn_pick_ckpt.configure(text=tr("浏览"))
+        btn_pick_input.configure(text=tr("浏览"))
+        btn_pick_output.configure(text=tr("浏览"))
+        btn_run.configure(text=tr("开始处理"))
+        btn_pause.configure(text=tr("暂停"))
+        btn_resume.configure(text=tr("继续"))
+        btn_stop.configure(text=tr("终止"))
+        btn_lang.configure(text=("中文" if lang_var.get() == "en" else "EN"))
+        status_var.set(tr("请选择模型与图片目录。"))
+        progress_text_var.set(tr("进度: 0/0"))
+
+    btn_lang = ttk.Button(frm, text="EN", command=toggle_lang)
+    btn_lang.grid(row=13, column=2, sticky="e", pady=(6, 0))
 
     root.mainloop()
 
