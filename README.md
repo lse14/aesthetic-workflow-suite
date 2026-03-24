@@ -1,10 +1,8 @@
-# Aesthetic Workflow Suite
-
 ---
 
-### 项目简介
+### 简介
 
-这是一个面向真实生产流程的美学评分工作流仓库，覆盖：
+一个面向真实生产流程的美学评分工作流，包括：
 
 1. 标注（`labeling_ui`）
 2. 训练（`training_ui`）
@@ -103,13 +101,6 @@ py -3 run.py --config config.yaml
 
 ### 安全与隐私
 
-仓库默认忽略：
-
-- 标注数据集
-- 模型权重
-- 输出目录
-- 缓存和虚拟环境
-
 请将私密信息（token/key）放入环境变量，不要写入配置文件。
 
 ### 开发方式
@@ -138,8 +129,6 @@ py -3 run.py --config config.yaml
 - 如上游项目要求引用（citation/attribution），请按其官方说明进行署名。
 
 ---
-
-## English
 
 ### Overview
 
@@ -243,11 +232,6 @@ Default ports:
 ### Security & Privacy
 
 By default, this repo ignores:
-
-- datasets
-- model weights
-- runtime outputs
-- caches and virtual environments
 
 Keep private credentials in environment variables. Do not hardcode keys/tokens in config files.
 
