@@ -55,6 +55,18 @@ batch/runtime/__pycache__/
 *.safetensors
 *.onnx
 
+# Allow tracked release models under models/
+!models/
+!models/**/
+!models/**/*.pt
+!models/**/*.pth
+!models/**/*.bin
+!models/**/*.ckpt
+!models/**/*.safetensors
+!models/**/*.onnx
+!models/**/*.md
+!models/**/*.txt
+
 # Archives
 *.zip
 *.7z

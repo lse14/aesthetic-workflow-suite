@@ -2,8 +2,6 @@
 
 ---
 
-## 中文说明
-
 ### 项目简介
 
 这是一个面向真实生产流程的美学评分工作流仓库，覆盖：
@@ -12,6 +10,7 @@
 2. 训练（`training_ui`）
 3. 批量推理与单图推理（`infer_ui`）
 4. 便携批处理与分拣（`batch`）
+5. 模型发布目录（`models`）
 
 核心目标是把“数据生产 -> 模型训练 -> 推理落地”串成一条可持续迭代的链路。
 
@@ -23,10 +22,27 @@ apps/
   training_ui/      # 训练 UI
   infer_ui/         # 批量推理 + 单图推理 UI
   batch/            # 便携批处理脚本（推理/分拣）
+  models/           # 训练好的模型发布目录（双模型位）
   README.md
   requirements.txt
   .gitignore
 ```
+
+### 模型目录与训练配比
+
+已新增两个模型子目录，便于你直接放训练好的 checkpoint：
+
+```text
+models/
+  model_a/
+  model_b/
+```
+
+标准训练数据配比说明（按你的要求固定写明）：
+
+- `0.2` Danbooru 图像
+- `0.4` e621 图像
+- `0.4` 本地图像
 
 ### 模型架构
 
@@ -98,7 +114,7 @@ py -3 run.py --config config.yaml
 
 ### 开发方式
 
-本项目部分功能迭代采用 **OpenAI Codex** 进行 vibe coding 协作开发（需求驱动、小步快改、快速回归验证）。
+本项目部分功能迭代采用 **OpenAI Codex** 协作开发。
 
 ### 致谢
 
@@ -133,6 +149,7 @@ This repository provides an end-to-end aesthetic scoring workflow:
 2. Training (`training_ui`)
 3. Batch + single-image inference (`infer_ui`)
 4. Portable batch processing and sorting (`batch`)
+5. Published model slots (`models`)
 
 The goal is to keep the full pipeline reproducible and practical for iterative model development.
 
@@ -144,10 +161,27 @@ apps/
   training_ui/      # Training UI
   infer_ui/         # Batch + single-image inference UI
   batch/            # Portable batch scripts (infer/sort)
+  models/           # Published trained models (two slots)
   README.md
   requirements.txt
   .gitignore
 ```
+
+### Model Slots and Training Mix
+
+Two model folders are prepared so you can drop your trained checkpoints directly:
+
+```text
+models/
+  model_a/
+  model_b/
+```
+
+Standard training data mix (explicitly documented):
+
+- `0.2` Danbooru images
+- `0.4` e621 images
+- `0.4` Local images
 
 ### Model Architecture
 
