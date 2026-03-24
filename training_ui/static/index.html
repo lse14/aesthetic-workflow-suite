@@ -1,0 +1,1753 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>模型训练面板</title>
+  <style>
+    :root {
+      --bg: #f3f7fb;
+      --card: #ffffff;
+      --fg: #132034;
+      --line: #d8e2ef;
+      --accent: #0f766e;
+      --loss-train: #0f766e;
+      --loss-val: #ea6a2a;
+      --danger: #dc2626;
+      --blue: #1d4ed8;
+      --muted: #5f6c7a;
+      --chip: #edf4fb;
+      --shadow: 0 10px 26px rgba(15, 23, 42, 0.07);
+      --field-bg: #fdfefe;
+      --field-line: #b8c6d8;
+      --field-focus: #73b4aa;
+    }
+    body[data-theme="dark"] {
+      --bg: #0c1420;
+      --card: #111d2b;
+      --fg: #e5edf7;
+      --line: #22344a;
+      --accent: #1f9d8f;
+      --loss-train: #2cc3b1;
+      --loss-val: #ff9b5f;
+      --danger: #ef4444;
+      --blue: #3b82f6;
+      --muted: #9db0c6;
+      --chip: #1c2b3e;
+      --shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
+      --field-bg: #0f1a28;
+      --field-line: #2e4460;
+      --field-focus: #1f9d8f;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      color: var(--fg);
+      font-family: "Segoe UI", "PingFang SC", sans-serif;
+      background:
+        radial-gradient(circle at 0% 0%, rgba(80, 151, 228, 0.2) 0, transparent 32%),
+        radial-gradient(circle at 100% 100%, rgba(57, 202, 157, 0.15) 0, transparent 42%),
+        var(--bg);
+      transition: background 180ms ease, color 180ms ease;
+    }
+    .wrap { max-width: 1820px; margin: 0 auto; padding: 18px; }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 14px;
+      margin-bottom: 14px;
+      box-shadow: var(--shadow);
+    }
+    .hero {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .progress-wrap {
+      margin-top: 10px;
+      display: grid;
+      gap: 6px;
+    }
+    .progress-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+      font-size: 13px;
+    }
+    .progress-title {
+      font-weight: 700;
+    }
+    .progress-meta {
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .progress-bar {
+      width: 100%;
+      height: 12px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: color-mix(in srgb, var(--card) 84%, var(--chip));
+      overflow: hidden;
+    }
+    .progress-fill {
+      width: 0%;
+      height: 100%;
+      background: linear-gradient(90deg, #0f766e 0%, #14b8a6 100%);
+      transition: width 180ms ease;
+    }
+    .theme-toggle {
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: var(--chip);
+      color: var(--fg);
+      padding: 6px 12px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(340px, 1fr) minmax(760px, 1.95fr) minmax(340px, 1fr);
+      grid-template-areas: "monitor main guide";
+      gap: 16px;
+      align-items: stretch;
+      justify-content: center;
+    }
+    .panel-monitor {
+      grid-area: monitor;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      height: 100%;
+    }
+    .panel-main,
+    .panel-guide {
+      grid-area: auto;
+      height: 100%;
+      margin-bottom: 0;
+      display: flex;
+      flex-direction: column;
+    }
+    .panel-main { grid-area: main; }
+    .panel-guide { grid-area: guide; }
+    .panel-monitor > .card {
+      margin-bottom: 0;
+    }
+    .panel-monitor > .card:last-child {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+    .panel-monitor > .card:last-child .logs-box {
+      flex: 1 1 auto;
+      min-height: 0;
+      max-height: none;
+      overflow-y: auto;
+    }
+    .field { display: grid; gap: 6px; margin-bottom: 0; }
+    .label-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .req {
+      font-size: 11px;
+      line-height: 1;
+      padding: 4px 7px;
+      border-radius: 999px;
+      border: 1px solid color-mix(in srgb, var(--danger) 40%, var(--line));
+      color: var(--danger);
+      background: color-mix(in srgb, var(--danger) 10%, var(--card));
+      font-weight: 700;
+    }
+    .hint {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.35;
+    }
+    .path-picker {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 6px;
+      align-items: center;
+    }
+    .section {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 12px;
+      margin-bottom: 10px;
+      background: color-mix(in srgb, var(--card) 90%, var(--chip));
+    }
+    .section h3 {
+      margin: 0 0 6px 0;
+      font-size: 15px;
+    }
+    .section .muted { margin-bottom: 8px; }
+    input, textarea, select {
+      border: 1px solid var(--field-line);
+      border-radius: 10px;
+      padding: 9px 11px;
+      width: 100%;
+      background: var(--field-bg);
+      color: var(--fg);
+      transition: border-color 120ms ease, box-shadow 120ms ease;
+    }
+    input:focus, textarea:focus, select:focus {
+      outline: none;
+      border-color: var(--field-focus);
+      box-shadow: 0 0 0 3px color-mix(in srgb, var(--field-focus) 22%, transparent);
+    }
+    input[type="checkbox"] {
+      width: auto;
+      padding: 0;
+      border: 0;
+      background: transparent;
+      box-shadow: none;
+    }
+    textarea {
+      min-height: 280px;
+      resize: vertical;
+      font-family: Consolas, monospace;
+      font-size: 12px;
+      line-height: 1.45;
+      white-space: pre;
+    }
+    button {
+      border: 0;
+      border-radius: 11px;
+      padding: 10px 14px;
+      font-weight: 700;
+      color: #fff;
+      cursor: pointer;
+      background: var(--accent);
+      transition: transform 120ms ease, opacity 120ms ease;
+    }
+    button:hover { transform: translateY(-1px); }
+    button.blue { background: var(--blue); }
+    button.red { background: var(--danger); }
+    button.ghost {
+      color: var(--fg);
+      background: var(--chip);
+      border: 1px solid var(--line);
+      padding: 9px 11px;
+    }
+    button:disabled { opacity: 0.6; cursor: not-allowed; }
+    .line { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+    .grid2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+    #simple-fields {
+      align-items: start;
+    }
+    .top-align-field {
+      align-self: start;
+      align-content: start;
+    }
+    .quick-preset {
+      margin-top: 8px;
+      display: grid;
+      gap: 6px;
+    }
+    .run-mode-grid { align-items: start; }
+    .run-mode-grid > .field > label {
+      min-height: 48px;
+      display: flex;
+      align-items: flex-start;
+      margin: 0;
+      padding-top: 2px;
+    }
+    .run-mode-grid > .field > .label-row {
+      width: 100%;
+      justify-content: space-between;
+      flex-wrap: nowrap;
+      gap: 10px;
+    }
+    .run-mode-grid > .field > .label-row > span:first-child {
+      min-width: 0;
+    }
+    .run-mode-grid > .field > .label-row .req {
+      flex: 0 0 auto;
+      white-space: nowrap;
+      align-self: flex-start;
+      margin-top: 0;
+    }
+    .left-col { grid-column: 1; }
+    .right-col { grid-column: 2; }
+    .guide-grid {
+      display: grid;
+      gap: 8px;
+    }
+    .guide-item {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 8px 9px;
+      background: color-mix(in srgb, var(--card) 92%, var(--chip));
+      display: grid;
+      gap: 4px;
+    }
+    .guide-key {
+      font-weight: 700;
+      font-size: 13px;
+    }
+    .guide-item .muted {
+      font-size: 12px;
+      line-height: 1.4;
+    }
+    .actions { margin-top: 4px; }
+    .actions { justify-content: center; }
+    .dims-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+    }
+    .dim-chip {
+      position: relative;
+      display: block;
+      cursor: pointer;
+    }
+    .dim-chip input {
+      position: absolute;
+      opacity: 0;
+      pointer-events: none;
+    }
+    .dim-body {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 9px 11px;
+      background: color-mix(in srgb, var(--card) 88%, var(--chip));
+      display: grid;
+      gap: 3px;
+      min-height: 62px;
+      transition: border-color 120ms ease, box-shadow 120ms ease, transform 120ms ease;
+    }
+    .dim-title {
+      font-size: 14px;
+      font-weight: 700;
+      line-height: 1.1;
+    }
+    .dim-sub {
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.3;
+    }
+    .dim-chip:hover .dim-body { transform: translateY(-1px); }
+    .dim-chip input:checked + .dim-body {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 20%, transparent);
+      background: color-mix(in srgb, var(--accent) 14%, var(--card));
+    }
+    .logs-box {
+      min-height: 320px;
+      height: clamp(320px, 56vh, 760px);
+      max-height: 760px;
+      overflow-y: auto;
+      overflow-x: auto;
+      scrollbar-gutter: stable both-edges;
+      scrollbar-width: auto;
+      scrollbar-color: color-mix(in srgb, var(--muted) 45%, transparent) transparent;
+    }
+    .logs-box::-webkit-scrollbar {
+      width: 12px;
+      height: 12px;
+    }
+    .logs-box::-webkit-scrollbar-thumb {
+      background: color-mix(in srgb, var(--muted) 45%, transparent);
+      border-radius: 999px;
+      border: 3px solid transparent;
+      background-clip: content-box;
+    }
+    .logs-box::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    .loss-stats {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+      margin: 8px 0;
+    }
+    .loss-stat {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: color-mix(in srgb, var(--card) 90%, var(--chip));
+      padding: 7px 8px;
+      display: grid;
+      gap: 4px;
+      min-height: 58px;
+    }
+    .loss-stat .k {
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .loss-stat .v {
+      font-family: Consolas, monospace;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--fg);
+      line-height: 1.2;
+    }
+    .loss-stat.train .v { color: var(--loss-train); }
+    .loss-stat.val .v { color: var(--loss-val); }
+    .loss-board {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: color-mix(in srgb, var(--card) 88%, var(--chip));
+      min-height: 220px;
+      height: 220px;
+      overflow: hidden;
+    }
+    .loss-board canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+    .muted { color: var(--muted); font-size: 13px; }
+    .err { color: var(--danger); min-height: 20px; font-weight: 700; }
+    .mono {
+      font-family: Consolas, monospace;
+      white-space: pre-wrap;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 8px;
+      background: color-mix(in srgb, var(--card) 88%, var(--chip));
+      max-height: 56vh;
+      overflow: auto;
+      font-size: 12px;
+    }
+    @media (max-width: 1500px) {
+      .layout {
+        grid-template-columns: minmax(620px, 1.7fr) minmax(360px, 1fr);
+        grid-template-areas:
+          "main guide"
+          "monitor guide";
+        align-items: start;
+      }
+      .panel-main,
+      .panel-guide {
+        height: auto;
+      }
+      .panel-monitor > .card:last-child .logs-box {
+        height: clamp(300px, 52vh, 640px);
+      }
+    }
+    @media (max-width: 980px) {
+      .layout {
+        grid-template-columns: 1fr;
+        grid-template-areas:
+          "main"
+          "monitor"
+          "guide";
+      }
+      .grid2 { grid-template-columns: 1fr; }
+      .left-col { grid-column: auto; }
+      .right-col { grid-column: auto; }
+      .dims-grid { grid-template-columns: 1fr; }
+      .loss-stats { grid-template-columns: 1fr; }
+      .logs-box {
+        min-height: 260px;
+        height: clamp(260px, 48vh, 520px);
+        max-height: 520px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <div class="hero">
+        <h2 style="margin:0;">模型训练面板（独立进程）</h2>
+        <button id="lang-toggle" class="theme-toggle" type="button">EN</button>
+        <button id="theme-toggle" class="theme-toggle" type="button">夜间模式</button>
+      </div>
+      <div class="muted" style="margin-top:8px;">支持快速模式（常用参数）和 YAML 模式，两种方式都可一键训练并自动评估。</div>
+      <div class="progress-wrap">
+        <div class="progress-head">
+          <div class="progress-title" id="train-progress-title">训练进度：等待日志</div>
+          <div class="progress-meta" id="train-progress-meta">已训练：--:--:-- ｜ 预计总时长：--:--:-- ｜ 预计剩余：--:--:--</div>
+        </div>
+        <div class="progress-bar">
+          <div class="progress-fill" id="train-progress-fill"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="layout">
+      <div class="panel-monitor">
+        <div class="card">
+          <h3 style="margin:0 0 8px 0;">训练检测面板</h3>
+          <div class="muted">这里集中显示任务状态、命令、进程号和返回码，便于排查训练问题。</div>
+          <div class="mono" id="status"></div>
+        </div>
+        <div class="card">
+          <h3 style="margin:0 0 8px 0;">Loss 看板</h3>
+          <div class="muted">按 epoch 展示 train/val loss 趋势，用于观察收敛与过拟合。</div>
+          <div class="loss-stats">
+            <div class="loss-stat train">
+              <div class="k">当前 train_loss</div>
+              <div class="v" id="loss-train-now">-</div>
+            </div>
+            <div class="loss-stat val">
+              <div class="k">当前 val_loss</div>
+              <div class="v" id="loss-val-now">-</div>
+            </div>
+            <div class="loss-stat val">
+              <div class="k">最佳 val_loss</div>
+              <div class="v" id="loss-val-best">-</div>
+            </div>
+          </div>
+          <div class="loss-board">
+            <canvas id="loss-canvas"></canvas>
+          </div>
+        </div>
+        <div class="card">
+          <h3 style="margin:0 0 8px 0;">实时日志</h3>
+          <div class="muted">默认每 2 秒自动刷新。只保留最近日志，适合观察训练是否正常推进。</div>
+          <div class="muted">上滑到顶部可加载更早日志。</div>
+          <div class="mono logs-box" id="logs"></div>
+        </div>
+      </div>
+
+      <div class="card panel-main">
+        <div class="section">
+          <h3>1. 运行方式</h3>
+          <div class="grid2 run-mode-grid">
+            <div class="field">
+              <label class="label-row">
+                <span>训练配置文件（train_fusion.py 的 --config）</span>
+                <span class="req">YAML模式必填</span>
+              </label>
+              <div class="path-picker">
+                <input id="config-path" value="configs/fusion_1k_baseline.yaml" />
+                <button id="btn-pick-config" class="ghost" type="button">浏览</button>
+              </div>
+              <div class="hint">作用：指定训练配置来源。快速模式可用于继承默认参数。</div>
+            </div>
+            <div class="field">
+              <label>启动模式</label>
+              <select id="start-mode">
+                <option value="simple" selected>快速模式（推荐：填常用参数）</option>
+                <option value="config">配置模式（使用 YAML）</option>
+              </select>
+              <div class="hint">作用：快速模式用表单拼参数；配置模式完全按 YAML 执行。</div>
+            </div>
+          </div>
+          <div class="field" id="simple-help">
+            <div class="muted">快速模式下只需填“标注文件”，其余参数可按需调整，训练完成后会自动评估。</div>
+          </div>
+        </div>
+
+        <div class="section">
+          <h3>2. 快速模式参数</h3>
+          <div class="grid2" id="simple-fields">
+            <div class="field">
+              <label class="label-row">
+                <span>标注文件（jsonl/csv/db）</span>
+                <span class="req">必填</span>
+              </label>
+              <div class="path-picker">
+                <input id="quick-annotations" placeholder="如：D:\vscode\vibecode\apps\labeling_ui\dataset\labels.db" />
+                <button id="btn-pick-annotations" class="ghost" type="button">浏览</button>
+              </div>
+              <div class="hint">作用：训练样本与标签来源，决定模型学习目标。</div>
+            </div>
+            <div class="field">
+              <label>图片根目录（可选）</label>
+              <div class="path-picker">
+                <input id="quick-image-root" placeholder="如：D:\data\images" />
+                <button id="btn-pick-image-root" class="ghost" type="button">浏览</button>
+              </div>
+              <div class="hint">作用：当标注中是相对路径时，用它拼出真实图片路径。</div>
+            </div>
+            <div class="field">
+              <label>训练 split（可留空）</label>
+              <input id="quick-train-split" placeholder="如：train（没有就留空）" />
+              <div class="hint">作用：指定训练子集名（例如 train）。</div>
+            </div>
+            <div class="field">
+              <label>验证 split（可留空）</label>
+              <input id="quick-val-split" placeholder="如：val（没有就留空）" />
+              <div class="hint">作用：指定验证子集名（例如 val）。</div>
+            </div>
+            <div class="field">
+              <label>随机验证比例（无 split 时生效）</label>
+              <input id="quick-val-ratio" placeholder="留空则按配置文件" />
+              <div class="hint">作用：没提供 split 时，按比例从训练集中切分验证集。</div>
+            </div>
+            <div class="field">
+              <label>训练轮数</label>
+              <input id="quick-epochs" value="16" />
+              <div class="hint">作用：完整遍历训练集的次数，影响收敛和训练时长。</div>
+            </div>
+            <div class="field left-col">
+              <label>批量大小</label>
+              <input id="quick-batch-size" value="8" />
+              <div class="hint">作用：单次迭代的样本数，影响显存占用和梯度稳定性。</div>
+            </div>
+            <div class="field right-col">
+              <label>数据加载 workers</label>
+              <input id="quick-num-workers" value="4" />
+              <div class="hint">作用：并行读取与预处理数据的进程数。CPU强可适当调高。</div>
+            </div>
+            <div class="field left-col">
+              <label>学习率</label>
+              <input id="quick-lr" value="0.0002" />
+              <div class="hint">作用：参数更新步长，过大会震荡，过小会收敛慢。</div>
+            </div>
+            <div class="field right-col">
+              <label>设备（自动/cuda/cpu）</label>
+              <select id="quick-device">
+                <option value="" selected>自动（默认）</option>
+                <option value="cuda">cuda（GPU）</option>
+                <option value="cpu">cpu</option>
+              </select>
+              <div class="hint">作用：指定训练硬件。留空时自动选择可用设备。</div>
+            </div>
+            <div class="field">
+              <label>输出目录（可选）</label>
+              <div class="path-picker">
+                <input id="quick-output-dir" placeholder="如：outputs/fusion_auto" />
+                <button id="btn-pick-output-dir" class="ghost" type="button">浏览</button>
+              </div>
+              <div class="hint">作用：保存 checkpoint、日志和评估结果的目录。</div>
+            </div>
+            <div class="field">
+              <label>输出模型名（不含扩展名）</label>
+              <input id="quick-model-name" value="best" placeholder="如：fusion_aes_v1" />
+              <div class="hint">作用：最佳模型将保存为“模型名.格式”。</div>
+            </div>
+            <div class="field">
+              <label>模型格式</label>
+              <select id="quick-model-format">
+                <option value="safetensors" selected>safetensors（推荐）</option>
+                <option value="pt">pt（PyTorch）</option>
+                <option value="pth">pth（PyTorch）</option>
+                <option value="ckpt">ckpt（PyTorch）</option>
+              </select>
+              <div class="hint">作用：选择最佳模型文件格式。若要兼容推理UI，推荐 safetensors。</div>
+            </div>
+            <div class="field">
+              <label>评估 split（默认跟随验证 split）</label>
+              <input id="quick-eval-split" placeholder="如：val" />
+              <div class="hint">作用：指定训练后自动评估使用的数据子集。</div>
+            </div>
+            <div class="field">
+              <label>评估 batch 大小（可选）</label>
+              <input id="quick-eval-batch-size" placeholder="不填则跟训练 batch 一致" />
+              <div class="hint">作用：仅影响评估阶段吞吐，不影响训练结果。</div>
+            </div>
+            <div class="field left-col">
+              <label class="label-row">
+                <span>训练维度（可多选）</span>
+                <span class="req">至少选 1 个</span>
+              </label>
+              <div class="dims-grid" id="quick-target-dims">
+                <label class="dim-chip">
+                  <input type="checkbox" name="target-dim" value="aesthetic" checked />
+                  <span class="dim-body">
+                    <span class="dim-title">aesthetic</span>
+                    <span class="dim-sub">美学整体质量</span>
+                  </span>
+                </label>
+                <label class="dim-chip">
+                  <input type="checkbox" name="target-dim" value="composition" checked />
+                  <span class="dim-body">
+                    <span class="dim-title">composition</span>
+                    <span class="dim-sub">构图与画面结构</span>
+                  </span>
+                </label>
+                <label class="dim-chip">
+                  <input type="checkbox" name="target-dim" value="color" checked />
+                  <span class="dim-body">
+                    <span class="dim-title">color</span>
+                    <span class="dim-sub">色彩协调与层次</span>
+                  </span>
+                </label>
+                <label class="dim-chip">
+                  <input type="checkbox" name="target-dim" value="sexual" checked />
+                  <span class="dim-body">
+                    <span class="dim-title">sexual</span>
+                    <span class="dim-sub">成人向强度</span>
+                  </span>
+                </label>
+              </div>
+              <div class="hint">作用：控制多任务头训练哪些分支，未选维度不会参与 loss。</div>
+            </div>
+            <div class="field top-align-field right-col">
+              <label>跳过自动评估</label>
+              <select id="quick-skip-eval">
+                <option value="false" selected>否（默认自动评估）</option>
+                <option value="true">是（只训练）</option>
+              </select>
+              <div class="hint">作用：若选“是”，训练结束后不自动跑 eval。</div>
+              <div class="quick-preset">
+                <label>快速参数配置</label>
+                <div class="line">
+                  <button id="btn-load-quick-config" class="blue" type="button">读取快速参数</button>
+                  <button id="btn-save-quick-config" type="button">保存快速参数</button>
+                </div>
+                <div class="hint">作用：保存当前快速模式输入，下次打开可一键恢复。</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="section" id="config-mode-area">
+          <h3>3. YAML 配置模式</h3>
+          <div class="field">
+            <label>训练配置 YAML（可编辑）</label>
+            <textarea id="config-editor" spellcheck="false"></textarea>
+          </div>
+          <div class="line" id="config-actions">
+            <button id="btn-load-config" class="blue" type="button">读取YAML</button>
+            <button id="btn-save-config" type="button">保存YAML</button>
+          </div>
+          <div class="muted" id="config-hint">可直接在这里修改 batch_size/lr/epochs 等参数，保存后再点“按YAML启动”。</div>
+        </div>
+
+        <div class="line actions">
+          <button id="btn-start-simple">快速启动（训练+评估）</button>
+          <button id="btn-start">按YAML启动</button>
+          <button id="btn-stop" class="red">停止训练</button>
+          <button id="btn-refresh" class="blue">刷新状态</button>
+        </div>
+        <div class="err" id="err"></div>
+      </div>
+
+      <div class="card panel-guide">
+        <h3 style="margin:0 0 8px 0;">每个可填参数：说明 + 推荐值</h3>
+        <div class="muted">以下推荐值面向你的当前工作流（美学四维评分模型）和常见单卡训练场景。</div>
+        <div class="guide-grid">
+          <div class="guide-item">
+            <div class="guide-key">训练配置文件（--config）</div>
+            <div class="muted">说明：训练脚本读取的主配置文件。推荐：`configs/fusion_1k_baseline.yaml`（当前默认）。</div>
+          </div>
+          <div class="guide-item">
+            <div class="guide-key">标注文件（annotations，必填）</div>
+            <div class="muted">说明：训练样本和标签来源。推荐：指向最新标注库（如 `labeling_ui/dataset/labels.db`）。</div>
+          </div>
+          <div class="guide-item">
+            <div class="guide-key">图片根目录（image_root）</div>
+            <div class="muted">说明：当标注里是相对路径时，用它定位图片。推荐：填你的图片根目录；若标注已是绝对路径可留空。</div>
+          </div>
+          <div class="guide-item">
+            <div class="guide-key">训练 split（train_split）</div>
+            <div class="muted">说明：指定训练子集名。推荐：默认留空；仅当标注含 split 字段时填 `train`。</div>
+          </div>
+          <div class="guide-item">
+            <div class="guide-key">验证 split（val_split）</div>
+            <div class="muted">说明：指定验证子集名。推荐：默认留空；仅当标注含 split 字段时填 `val`。</div>
+          </div>
+          <div class="guide-item">
+            <div class="guide-key">随机验证比例（val_ratio）</div>
+            <div class="muted">说明：仅在未提供 split 时用于切分验证集。推荐：`0.1` 到 `0.2`，常用 `0.1`。</div>
+          </div>
+          <div class="guide-item">
+            <div class="guide-key">训练轮数（epochs）</div>
+            <div class="muted">说明：完整遍历训练集次数。推荐：先用 `16`，数据更大可 `8-12`，追求上限可 `20+`。</div>
+          </div>
+          <div class="guide-item">
+            <div class="guide-key">批量大小（batch_size）</div>
+            <div class="muted">说明：每步样本数，直接影响显存。推荐：8GB 显存用 `4-8`，12GB+ 可 `8-16`。</div>
+          </div>
+          <div class="guide-item">
+            <div class="guide-key">数据加载 workers（num_workers）</div>
+            <div class="muted">说明：DataLoader 并行进程数。推荐：先用 `4`；CPU 核心多、磁盘快可试 `6-8`；过高会导致 CPU 争用。</div>
+          </div>
+          <div class="guide-item">
+            <div class="guide-key">学习率（lr）</div>
+            <div class="muted">说明：参数更新步长。推荐：`2e-4`（即 `0.0002`）作为起点；不稳定时降到 `1e-4`。</div>
+          </div>
+          <div class="guide-item">
+            <div class="guide-key">设备（device）</div>
+            <div class="muted">说明：训练运行设备。推荐：有 NVIDIA GPU 用 `cuda`；无 GPU 用 `cpu`（会慢很多）。</div>
+          </div>
+          <div class="guide-item">
+            <div class="guide-key">输出目录（output_dir）</div>
+            <div class="muted">说明：保存 checkpoint、日志和评估结果。推荐：`outputs/fusion_auto` 或按实验名单独建目录。</div>
+          </div>
+          <div class="guide-item">
+            <div class="guide-key">输出模型名（model_name）</div>
+            <div class="muted">说明：训练完成后最佳模型文件名（不含扩展名）。推荐：`best` 或按实验命名如 `fusion_aes_v1`。</div>
+          </div>
+          <div class="guide-item">
+            <div class="guide-key">模型格式（model_format）</div>
+            <div class="muted">说明：最佳模型保存格式。推荐：优先 `safetensors`（更安全，兼容当前推理 UI）；需要 PyTorch 原生可选 `pt/pth`。</div>
+          </div>
+          <div class="guide-item">
+            <div class="guide-key">评估 split（eval_split）</div>
+            <div class="muted">说明：训练后自动评估使用的数据子集。推荐：`val`（通常与验证 split 一致）。</div>
+          </div>
+          <div class="guide-item">
+            <div class="guide-key">评估 batch（eval_batch_size）</div>
+            <div class="muted">说明：只影响评估速度。推荐：先留空（跟训练 batch 一致），显存充足可比训练更大。</div>
+          </div>
+          <div class="guide-item">
+            <div class="guide-key">训练维度（target_dims）</div>
+            <div class="muted">说明：选择参与训练的评分头。推荐：初次训练全选四维；做专项微调时只勾选目标维度。</div>
+          </div>
+          <div class="guide-item">
+            <div class="guide-key">跳过自动评估（skip_eval）</div>
+            <div class="muted">说明：是否在训练结束后自动跑评估。推荐：默认“否”；批量试错时可设为“是”提速。</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    let lastLogId = 0;
+    let oldestLogId = 0;
+    let loadingOlderLogs = false;
+    let hasMoreOlderLogs = false;
+    let progressCurrentEpoch = 0;
+    let progressTotalEpochs = 0;
+    let progressTaskStartMs = 0;
+    let progressTaskEndMs = 0;
+    let progressRunning = false;
+    let lossByEpoch = new Map();
+    let pollTimer = null;
+    const THEME_KEY = "vibecode.training.theme";
+    const LANG_KEY = "vibecode.training.lang";
+    let currentLang = "zh-CN";
+    const ZH_EN = {
+      "模型训练面板": "Model Training Panel",
+      "模型训练面板（独立进程）": "Model Training Panel (Standalone)",
+      "支持在本页直接编辑 YAML 参数并保存，然后一键启动训练。": "Edit YAML parameters on this page, save, then start training in one click.",
+      "支持快速模式（常用参数）和 YAML 模式，两种方式都可一键训练并自动评估。": "Supports both quick mode (common params) and YAML mode. Both can run train+auto-eval in one click.",
+      "训练配置文件（train_fusion.py 的 --config）": "Training config file (train_fusion.py --config)",
+      "启动模式": "Launch Mode",
+      "快速模式（推荐：填常用参数）": "Quick Mode (Recommended)",
+      "配置模式（使用 YAML）": "Config Mode (YAML)",
+      "快速模式下只需填“标注文件”，其余参数可按需调整，训练完成后会自动评估。": "In quick mode, only annotation file is required. Others are optional. Auto evaluation runs after training.",
+      "标注文件（必填，jsonl/csv/db）": "Annotations (Required, jsonl/csv/db)",
+      "图片根目录（可选）": "Image Root (Optional)",
+      "训练 split（可留空）": "Train Split (Optional)",
+      "验证 split（可留空）": "Val Split (Optional)",
+      "随机验证比例（无 split 时生效）": "Random Val Ratio (used when no split)",
+      "训练轮数": "Epochs",
+      "批量大小": "Batch Size",
+      "数据加载 workers": "Data Loader Workers",
+      "学习率": "Learning Rate",
+      "设备（自动/cuda/cpu）": "Device (auto/cuda/cpu)",
+      "设备（cuda/cpu）": "Device (cuda/cpu)",
+      "自动（默认）": "Auto (Default)",
+      "cuda（GPU）": "cuda (GPU)",
+      "输出目录（可选）": "Output Dir (Optional)",
+      "输出模型名（不含扩展名）": "Output Model Name (No extension)",
+      "模型格式": "Model Format",
+      "safetensors（推荐）": "safetensors (Recommended)",
+      "pt（PyTorch）": "pt (PyTorch)",
+      "pth（PyTorch）": "pth (PyTorch)",
+      "ckpt（PyTorch）": "ckpt (PyTorch)",
+      "评估 split（默认跟随验证 split）": "Eval Split (Default follows val split)",
+      "评估 batch 大小（可选）": "Eval Batch Size (Optional)",
+      "跳过自动评估": "Skip Auto Evaluation",
+      "否（默认自动评估）": "No (Auto eval)",
+      "是（只训练）": "Yes (Train only)",
+      "快速参数配置": "Quick Param Preset",
+      "读取快速参数": "Load Quick Params",
+      "保存快速参数": "Save Quick Params",
+      "作用：保存当前快速模式输入，下次打开可一键恢复。": "Purpose: save current quick-mode inputs and restore them next time in one click.",
+      "训练配置 YAML（可编辑）": "Training YAML (Editable)",
+      "读取YAML": "Load YAML",
+      "保存YAML": "Save YAML",
+      "可直接在这里修改 batch_size/lr/epochs 等参数，保存后再点“启动训练”。": "Edit batch_size/lr/epochs here, save YAML, then click Start Training.",
+      "快速启动（训练+评估）": "Quick Start (Train+Eval)",
+      "按YAML启动": "Start With YAML",
+      "可直接在这里修改 batch_size/lr/epochs 等参数，保存后再点“按YAML启动”。": "Edit batch_size/lr/epochs here, save YAML, then click Start With YAML.",
+      "浏览": "Browse",
+      "启动训练": "Start Training",
+      "停止训练": "Stop Training",
+      "刷新状态": "Refresh Status",
+      "实时日志": "Live Logs",
+      "Loss 看板": "Loss Board",
+      "按 epoch 展示 train/val loss 趋势，用于观察收敛与过拟合。": "Shows train/val loss by epoch to track convergence and overfitting.",
+      "当前 train_loss": "Current train_loss",
+      "当前 val_loss": "Current val_loss",
+      "最佳 val_loss": "Best val_loss",
+      "等待 loss 日志…": "Waiting for loss logs...",
+      "1. 运行方式": "1. Run Mode",
+      "2. 快速模式参数": "2. Quick Mode Params",
+      "3. YAML 配置模式": "3. YAML Config Mode",
+      "YAML模式必填": "Required in YAML mode",
+      "每个可填参数：说明 + 推荐值": "Each Parameter: Purpose + Recommended Value",
+      "以下推荐值面向你的当前工作流（美学四维评分模型）和常见单卡训练场景。": "Recommendations below target your current 4-dimension aesthetic workflow and common single-GPU setups.",
+      "训练检测面板": "Training Monitor",
+      "这里集中显示任务状态、命令、进程号和返回码，便于排查训练问题。": "Shows task status, command, pid and return code for quick troubleshooting.",
+      "美学整体质量": "Overall aesthetic quality",
+      "构图与画面结构": "Composition and scene structure",
+      "色彩协调与层次": "Color harmony and layering",
+      "成人向强度": "Adult-content intensity",
+      "标注文件（jsonl/csv/db）": "Annotations (jsonl/csv/db)",
+      "标注文件（必填）": "Annotations (Required)",
+      "训练配置文件（YAML模式必填）": "Training config file (Required in YAML mode)",
+      "训练配置文件（--config）": "Training config file (--config)",
+      "标注文件（annotations，必填）": "Annotations (annotations, required)",
+      "图片根目录（image_root）": "Image Root (image_root)",
+      "训练 split（train_split）": "Train Split (train_split)",
+      "验证 split（val_split）": "Val Split (val_split)",
+      "随机验证比例（val_ratio）": "Random Val Ratio (val_ratio)",
+      "训练轮数（epochs）": "Epochs (epochs)",
+      "批量大小（batch_size）": "Batch Size (batch_size)",
+      "数据加载 workers（num_workers）": "Data Loader Workers (num_workers)",
+      "学习率（lr）": "Learning Rate (lr)",
+      "设备（device）": "Device (device)",
+      "输出目录（output_dir）": "Output Dir (output_dir)",
+      "输出模型名（model_name）": "Output Model Name (model_name)",
+      "模型格式（model_format）": "Model Format (model_format)",
+      "评估 split（eval_split）": "Eval Split (eval_split)",
+      "评估 batch（eval_batch_size）": "Eval Batch (eval_batch_size)",
+      "训练维度（target_dims）": "Target Dims (target_dims)",
+      "跳过自动评估（skip_eval）": "Skip Auto Eval (skip_eval)",
+      "训练维度（可多选）": "Target Dimensions (Multi-select)",
+      "至少选 1 个": "Select at least one",
+      "作用：指定训练配置来源。快速模式可用于继承默认参数。": "Purpose: points to training config source. Quick mode can inherit defaults from it.",
+      "作用：快速模式用表单拼参数；配置模式完全按 YAML 执行。": "Purpose: quick mode builds args from form; config mode follows YAML strictly.",
+      "作用：训练样本与标签来源，决定模型学习目标。": "Purpose: source of samples and labels, defines what the model learns.",
+      "作用：当标注中是相对路径时，用它拼出真实图片路径。": "Purpose: resolves real image paths when annotations use relative paths.",
+      "说明：指定训练子集名。推荐：默认留空；仅当标注含 split 字段时填 `train`。": "Purpose: choose train split. Recommended: keep empty by default; fill `train` only if your annotations contain split fields.",
+      "说明：指定验证子集名。推荐：默认留空；仅当标注含 split 字段时填 `val`。": "Purpose: choose val split. Recommended: keep empty by default; fill `val` only if your annotations contain split fields.",
+      "说明：训练脚本读取的主配置文件。推荐：`configs/fusion_1k_baseline.yaml`（当前默认）。": "Purpose: primary config file read by training script. Recommended: `configs/fusion_1k_baseline.yaml` (current default).",
+      "说明：训练样本和标签来源。推荐：指向最新标注库（如 `labeling_ui/dataset/labels.db`）。": "Purpose: source of training samples and labels. Recommended: latest annotation DB (e.g. `labeling_ui/dataset/labels.db`).",
+      "说明：当标注里是相对路径时，用它定位图片。推荐：填你的图片根目录；若标注已是绝对路径可留空。": "Purpose: resolve images when annotation paths are relative. Recommended: set your image root; leave empty if paths are absolute.",
+      "说明：仅在未提供 split 时用于切分验证集。推荐：`0.1` 到 `0.2`，常用 `0.1`。": "Purpose: split out validation only when split is not provided. Recommended: `0.1` to `0.2`, commonly `0.1`.",
+      "说明：完整遍历训练集次数。推荐：先用 `16`，数据更大可 `8-12`，追求上限可 `20+`。": "Purpose: full passes over training set. Recommended: start with `16`; for larger data use `8-12`; for upper bound try `20+`.",
+      "说明：每步样本数，直接影响显存。推荐：8GB 显存用 `4-8`，12GB+ 可 `8-16`。": "Purpose: samples per step, directly affects VRAM. Recommended: 8GB VRAM use `4-8`, 12GB+ can use `8-16`.",
+      "说明：DataLoader 并行进程数。推荐：先用 `4`；CPU 核心多、磁盘快可试 `6-8`；过高会导致 CPU 争用。": "Purpose: DataLoader worker processes. Recommended: start with `4`; try `6-8` on strong CPU + fast disk; too high may cause CPU contention.",
+      "说明：参数更新步长。推荐：`2e-4`（即 `0.0002`）作为起点；不稳定时降到 `1e-4`。": "Purpose: optimization step size. Recommended: start with `2e-4` (`0.0002`); reduce to `1e-4` if unstable.",
+      "说明：训练运行设备。推荐：有 NVIDIA GPU 用 `cuda`；无 GPU 用 `cpu`（会慢很多）。": "Purpose: training runtime device. Recommended: use `cuda` with NVIDIA GPU; otherwise `cpu` (much slower).",
+      "说明：保存 checkpoint、日志和评估结果。推荐：`outputs/fusion_auto` 或按实验名单独建目录。": "Purpose: save checkpoints, logs and eval outputs. Recommended: `outputs/fusion_auto` or per-experiment folders.",
+      "说明：训练完成后最佳模型文件名（不含扩展名）。推荐：`best` 或按实验命名如 `fusion_aes_v1`。": "Purpose: best model filename after training (without extension). Recommended: `best` or experiment-specific names like `fusion_aes_v1`.",
+      "说明：最佳模型保存格式。推荐：优先 `safetensors`（更安全，兼容当前推理 UI）；需要 PyTorch 原生可选 `pt/pth`。": "Purpose: best model output format. Recommended: prefer `safetensors` (safer, compatible with current infer UI); choose `pt/pth` for native PyTorch workflows.",
+      "说明：训练后自动评估使用的数据子集。推荐：`val`（通常与验证 split 一致）。": "Purpose: data split for post-training auto eval. Recommended: `val` (usually same as validation split).",
+      "说明：只影响评估速度。推荐：先留空（跟训练 batch 一致），显存充足可比训练更大。": "Purpose: affects evaluation speed only. Recommended: leave empty first (same as training batch); increase if VRAM allows.",
+      "说明：选择参与训练的评分头。推荐：初次训练全选四维；做专项微调时只勾选目标维度。": "Purpose: choose score heads to train. Recommended: select all 4 dims initially; for focused finetune select target dims only.",
+      "说明：是否在训练结束后自动跑评估。推荐：默认“否”；批量试错时可设为“是”提速。": "Purpose: whether to auto-run evaluation after training. Recommended: default `No`; set `Yes` for faster batch trial runs.",
+      "作用：指定训练子集名（例如 train）。": "Purpose: sets the training split name (e.g. train).",
+      "作用：指定验证子集名（例如 val）。": "Purpose: sets the validation split name (e.g. val).",
+      "作用：没提供 split 时，按比例从训练集中切分验证集。": "Purpose: when split is missing, randomly splits validation from training set.",
+      "作用：完整遍历训练集的次数，影响收敛和训练时长。": "Purpose: number of full passes over dataset, affects convergence and runtime.",
+      "作用：单次迭代的样本数，影响显存占用和梯度稳定性。": "Purpose: samples per iteration, affects VRAM usage and gradient stability.",
+      "作用：并行读取与预处理数据的进程数。CPU强可适当调高。": "Purpose: number of worker processes for data loading and preprocessing. Increase if CPU is strong.",
+      "作用：参数更新步长，过大会震荡，过小会收敛慢。": "Purpose: optimizer step size; too high oscillates, too low converges slowly.",
+      "作用：指定训练硬件。留空时自动选择可用设备。": "Purpose: selects training device. Empty means auto-select available device.",
+      "作用：保存 checkpoint、日志和评估结果的目录。": "Purpose: output directory for checkpoints, logs and eval artifacts.",
+      "作用：最佳模型将保存为“模型名.格式”。": "Purpose: best model is saved as `model_name.format`.",
+      "作用：选择最佳模型文件格式。若要兼容推理UI，推荐 safetensors。": "Purpose: choose the best model file format. For infer UI compatibility, safetensors is recommended.",
+      "作用：指定训练后自动评估使用的数据子集。": "Purpose: selects the split used for post-training auto evaluation.",
+      "作用：仅影响评估阶段吞吐，不影响训练结果。": "Purpose: affects only eval throughput, not training results.",
+      "作用：控制多任务头训练哪些分支，未选维度不会参与 loss。": "Purpose: controls which task heads are trained; unchecked heads are excluded from loss.",
+      "作用：若选“是”，训练结束后不自动跑 eval。": "Purpose: if yes, skip auto-eval after training.",
+      "训练标签数据入口。没有它无法开始快速模式训练。": "Entry of labeled data. Quick mode cannot start without it.",
+      "决定模型结构、数据源与训练策略。配置模式完全依赖该文件。": "Defines model, data source and training strategy. Config mode fully depends on this file.",
+      "核心训练超参数，分别控制训练时长、显存占用与收敛步长。": "Core hyperparameters controlling runtime, VRAM usage, and convergence step size.",
+      "定义训练集与验证集的划分方式，决定评估稳定性。": "Defines train/val splitting strategy and affects evaluation stability.",
+      "指定要学习的评分头。至少选择一个维度。": "Specifies which score heads to train. Select at least one dimension.",
+      "控制运行环境、结果保存位置和训练后评估策略。": "Controls runtime environment, output location, and post-training evaluation behavior.",
+      "默认每 2 秒自动刷新。只保留最近日志，适合观察训练是否正常推进。": "Auto refresh every 2 seconds. Shows recent logs for progress monitoring.",
+      "上滑到顶部可加载更早日志。": "Scroll to top to load older logs.",
+      "训练进度：等待日志": "Progress: waiting for epoch logs",
+      "已训练：": "Elapsed: ",
+      "预计总时长：": "Estimated total: ",
+      "预计剩余：": "ETA: ",
+      "夜间模式": "Dark Mode",
+      "日间模式": "Light Mode",
+      "当前无训练任务。": "No training task.",
+      "读取状态失败: ": "Failed to read status: ",
+      "读取日志失败: ": "Failed to read logs: ",
+      "读取更早日志失败: ": "Failed to load older logs: ",
+      "启动失败: ": "Start failed: ",
+      "停止失败: ": "Stop failed: ",
+      "读取默认配置失败: ": "Failed to load defaults: ",
+      "读取YAML失败: ": "Failed to load YAML: ",
+      "保存YAML失败: ": "Failed to save YAML: ",
+      "打开文件选择器失败: ": "Failed to open file picker: ",
+      "读取快速参数失败: ": "Failed to load quick params: ",
+      "保存快速参数失败: ": "Failed to save quick params: ",
+      "YAML已保存。": "YAML saved.",
+      "快速参数已保存。": "Quick params saved.",
+      "快速参数已读取。": "Quick params loaded.",
+      "配置路径不能为空。": "Config path is required.",
+      "快速模式至少需要填写标注文件。": "Annotations are required in quick mode.",
+      "请至少选择一个训练维度。": "Please select at least one target dimension.",
+      "读取状态失败:": "Failed to read status:",
+      "读取日志失败:": "Failed to read logs:",
+      "读取更早日志失败:": "Failed to load older logs:",
+      "启动失败:": "Start failed:",
+      "停止失败:": "Stop failed:",
+      "读取默认配置失败:": "Failed to load defaults:",
+      "读取YAML失败:": "Failed to load YAML:",
+      "保存YAML失败:": "Failed to save YAML:",
+      "打开文件选择器失败:": "Failed to open file picker:",
+    };
+    const EN_ZH = Object.fromEntries(Object.entries(ZH_EN).map(([zh, en]) => [en, zh]));
+    const ZH_KEYS = Object.keys(ZH_EN).sort((a, b) => b.length - a.length);
+    const EN_KEYS = Object.keys(EN_ZH).sort((a, b) => b.length - a.length);
+
+    function replaceByMap(text, map, keys) {
+      let out = String(text ?? "");
+      for (const k of keys) out = out.split(k).join(map[k]);
+      return out;
+    }
+
+    function localizeText(text) {
+      if (currentLang === "en") return replaceByMap(text, ZH_EN, ZH_KEYS);
+      return replaceByMap(text, EN_ZH, EN_KEYS);
+    }
+
+    function localizeTree(root = document.body) {
+      const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+      let node = null;
+      while ((node = walker.nextNode())) {
+        if (!node.nodeValue || !node.nodeValue.trim()) continue;
+        node.nodeValue = localizeText(node.nodeValue);
+      }
+      document.title = localizeText(document.title);
+    }
+
+    function applyLanguage(lang, persist = true) {
+      currentLang = lang === "en" ? "en" : "zh-CN";
+      document.documentElement.lang = currentLang === "en" ? "en" : "zh-CN";
+      const btn = $("lang-toggle");
+      if (btn) btn.textContent = currentLang === "en" ? "ZH" : "EN";
+      if (persist) localStorage.setItem(LANG_KEY, currentLang);
+      const now = document.body.getAttribute("data-theme") === "dark" ? "dark" : "light";
+      applyTheme(now);
+      localizeTree();
+      renderTrainingProgress();
+      renderLossBoard();
+    }
+
+    function initLanguage() {
+      const stored = localStorage.getItem(LANG_KEY);
+      applyLanguage(stored === "en" ? "en" : "zh-CN", false);
+    }
+
+    function toggleLanguage() {
+      applyLanguage(currentLang === "en" ? "zh-CN" : "en");
+    }
+
+    function applyTheme(theme) {
+      const next = theme === "dark" ? "dark" : "light";
+      document.body.setAttribute("data-theme", next);
+      const btn = $("theme-toggle");
+      if (btn) {
+        if (currentLang === "en") btn.textContent = next === "dark" ? "Light Mode" : "Dark Mode";
+        else btn.textContent = next === "dark" ? "日间模式" : "夜间模式";
+      }
+      renderLossBoard();
+    }
+
+    function initTheme() {
+      const stored = localStorage.getItem(THEME_KEY);
+      if (stored === "dark" || stored === "light") {
+        applyTheme(stored);
+        return;
+      }
+      const prefersDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+      applyTheme(prefersDark ? "dark" : "light");
+    }
+
+    function toggleTheme() {
+      const now = document.body.getAttribute("data-theme") === "dark" ? "dark" : "light";
+      const next = now === "dark" ? "light" : "dark";
+      applyTheme(next);
+      localStorage.setItem(THEME_KEY, next);
+    }
+
+    function setErr(msg) {
+      $("err").textContent = localizeText(msg || "");
+    }
+
+    function asIntOrNull(v) {
+      const s = String(v ?? "").trim();
+      if (!s) return null;
+      const n = Number.parseInt(s, 10);
+      return Number.isFinite(n) ? n : null;
+    }
+
+    function asFloatOrNull(v) {
+      const s = String(v ?? "").trim();
+      if (!s) return null;
+      const n = Number.parseFloat(s);
+      return Number.isFinite(n) ? n : null;
+    }
+
+    function asTextOrNull(v) {
+      const s = String(v ?? "").trim();
+      return s ? s : null;
+    }
+
+    function getTargetDimsFromUI() {
+      const boxes = document.querySelectorAll("input[name='target-dim']:checked");
+      const out = [];
+      for (const b of boxes) out.push(String(b.value || "").trim());
+      return out;
+    }
+
+    function setFieldValue(id, value) {
+      const el = $(id);
+      if (!el) return;
+      el.value = value == null ? "" : String(value);
+    }
+
+    function collectQuickConfigFromUI() {
+      return {
+        annotations: asTextOrNull($("quick-annotations").value),
+        image_root: asTextOrNull($("quick-image-root").value),
+        train_split: asTextOrNull($("quick-train-split").value),
+        val_split: asTextOrNull($("quick-val-split").value),
+        val_ratio: asFloatOrNull($("quick-val-ratio").value),
+        epochs: asIntOrNull($("quick-epochs").value),
+        batch_size: asIntOrNull($("quick-batch-size").value),
+        num_workers: asIntOrNull($("quick-num-workers").value),
+        lr: asFloatOrNull($("quick-lr").value),
+        device: asTextOrNull($("quick-device").value),
+        output_dir: asTextOrNull($("quick-output-dir").value),
+        model_name: asTextOrNull($("quick-model-name").value),
+        model_format: asTextOrNull($("quick-model-format").value),
+        eval_split: asTextOrNull($("quick-eval-split").value),
+        eval_batch_size: asIntOrNull($("quick-eval-batch-size").value),
+        target_dims: getTargetDimsFromUI(),
+        skip_eval: $("quick-skip-eval").value === "true",
+      };
+    }
+
+    function applyQuickConfigToUI(raw) {
+      const cfg = raw && typeof raw === "object" ? raw : {};
+      setFieldValue("quick-annotations", cfg.annotations);
+      setFieldValue("quick-image-root", cfg.image_root);
+      setFieldValue("quick-train-split", cfg.train_split);
+      setFieldValue("quick-val-split", cfg.val_split);
+      setFieldValue("quick-val-ratio", cfg.val_ratio);
+      setFieldValue("quick-epochs", cfg.epochs);
+      setFieldValue("quick-batch-size", cfg.batch_size);
+      setFieldValue("quick-num-workers", cfg.num_workers);
+      setFieldValue("quick-lr", cfg.lr);
+      setFieldValue("quick-output-dir", cfg.output_dir);
+      setFieldValue("quick-model-name", cfg.model_name || "best");
+      setFieldValue("quick-eval-split", cfg.eval_split);
+      setFieldValue("quick-eval-batch-size", cfg.eval_batch_size);
+
+      const device = asTextOrNull(cfg.device);
+      const deviceEl = $("quick-device");
+      if (deviceEl) deviceEl.value = device === "cuda" || device === "cpu" ? device : "";
+      const modelFormat = asTextOrNull(cfg.model_format);
+      const modelFormatEl = $("quick-model-format");
+      if (modelFormatEl) {
+        modelFormatEl.value = ["safetensors", "pt", "pth", "ckpt"].includes(modelFormat || "")
+          ? modelFormat
+          : "safetensors";
+      }
+
+      const dimsRaw = Array.isArray(cfg.target_dims) ? cfg.target_dims : [];
+      const dims = dimsRaw.map((x) => String(x || "").trim()).filter(Boolean);
+      const picked = new Set(dims.length ? dims : ["aesthetic", "composition", "color", "sexual"]);
+      document.querySelectorAll("input[name='target-dim']").forEach((el) => {
+        el.checked = picked.has(String(el.value || "").trim());
+      });
+      $("quick-skip-eval").value = cfg.skip_eval ? "true" : "false";
+    }
+
+    function syncModeView() {
+      const mode = $("start-mode").value;
+      const isSimple = mode === "simple";
+      $("simple-help").style.display = isSimple ? "" : "none";
+      $("simple-fields").style.display = isSimple ? "grid" : "none";
+      $("config-mode-area").style.display = isSimple ? "none" : "";
+      $("btn-start-simple").style.display = isSimple ? "" : "none";
+      $("btn-start").style.display = isSimple ? "none" : "";
+    }
+
+    async function api(path, method = "GET", body = null) {
+      const resp = await fetch(path, {
+        method,
+        headers: body ? { "Content-Type": "application/json" } : undefined,
+        body: body ? JSON.stringify(body) : undefined,
+      });
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok) throw new Error(data.detail || `${resp.status} ${resp.statusText}`);
+      return data;
+    }
+
+    async function pickPath(fieldId, kind, mode) {
+      setErr("");
+      try {
+        const endpoint = mode === "dir" ? "/api/path/pick-dir" : "/api/path/pick-file";
+        const data = await api(endpoint, "POST", {
+          kind,
+          initial_path: asTextOrNull($(fieldId).value),
+        });
+        if (data && data.path) $(fieldId).value = String(data.path);
+      } catch (e) {
+        setErr(`打开文件选择器失败: ${e.message}`);
+      }
+    }
+
+    function fmtTime(iso) {
+      if (!iso) return "-";
+      const d = new Date(iso);
+      if (Number.isNaN(d.getTime())) return iso;
+      return d.toLocaleString();
+    }
+
+    function parseEpochProgress(line) {
+      const s = String(line || "");
+      let m = s.match(/\[\s*第\s*(\d+)\s*\/\s*(\d+)\s*轮\s*\]/);
+      if (!m) m = s.match(/\[\s*epoch\s*(\d+)\s*\/\s*(\d+)\s*\]/i);
+      if (!m) return null;
+      const cur = Number.parseInt(m[1], 10);
+      const tot = Number.parseInt(m[2], 10);
+      if (!Number.isFinite(cur) || !Number.isFinite(tot) || tot <= 0) return null;
+      return { cur, tot };
+    }
+
+    function parseLossMetric(line, key) {
+      const s = String(line || "");
+      const re = new RegExp(`${key}\\s*=\\s*([-+]?\\d*\\.?\\d+(?:[eE][-+]?\\d+)?)`, "i");
+      const m = s.match(re);
+      if (!m) return null;
+      const v = Number.parseFloat(m[1]);
+      return Number.isFinite(v) ? v : null;
+    }
+
+    function updateLossFromLine(line) {
+      const info = parseEpochProgress(line);
+      if (!info) return false;
+      const trainLoss = parseLossMetric(line, "train_loss");
+      const valLoss = parseLossMetric(line, "val_loss");
+      if (trainLoss == null && valLoss == null) return false;
+
+      const epoch = Number(info.cur);
+      const row = lossByEpoch.get(epoch) || { train: null, val: null };
+      let changed = false;
+      if (trainLoss != null && trainLoss !== row.train) {
+        row.train = trainLoss;
+        changed = true;
+      }
+      if (valLoss != null && valLoss !== row.val) {
+        row.val = valLoss;
+        changed = true;
+      }
+      if (changed) lossByEpoch.set(epoch, row);
+      return changed;
+    }
+
+    function getLossRows() {
+      return Array.from(lossByEpoch.entries())
+        .map(([epoch, row]) => ({
+          epoch: Number(epoch),
+          train: row && Number.isFinite(row.train) ? Number(row.train) : null,
+          val: row && Number.isFinite(row.val) ? Number(row.val) : null,
+        }))
+        .sort((a, b) => a.epoch - b.epoch);
+    }
+
+    function fmtLoss(v) {
+      return Number.isFinite(v) ? Number(v).toFixed(4) : "-";
+    }
+
+    function drawLossSeries(ctx, rows, key, color, xOf, yOf) {
+      const pts = rows.filter((r) => Number.isFinite(r[key]));
+      if (!pts.length) return;
+      ctx.beginPath();
+      pts.forEach((r, idx) => {
+        const x = xOf(r.epoch);
+        const y = yOf(r[key]);
+        if (idx === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      });
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      ctx.fillStyle = color;
+      for (const r of pts) {
+        ctx.beginPath();
+        ctx.arc(xOf(r.epoch), yOf(r[key]), 2.6, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    function renderLossBoard() {
+      const trainNowEl = $("loss-train-now");
+      const valNowEl = $("loss-val-now");
+      const valBestEl = $("loss-val-best");
+      const canvas = $("loss-canvas");
+      if (!trainNowEl || !valNowEl || !valBestEl || !canvas) return;
+
+      const rows = getLossRows();
+      const last = rows.length ? rows[rows.length - 1] : null;
+      const valOnly = rows.map((r) => r.val).filter((x) => Number.isFinite(x));
+      const bestVal = valOnly.length ? Math.min(...valOnly) : null;
+
+      trainNowEl.textContent = fmtLoss(last ? last.train : null);
+      valNowEl.textContent = fmtLoss(last ? last.val : null);
+      valBestEl.textContent = fmtLoss(bestVal);
+
+      const rect = canvas.getBoundingClientRect();
+      const cssW = Math.max(200, Math.floor(rect.width || 0));
+      const cssH = Math.max(140, Math.floor(rect.height || 0));
+      const dpr = Math.max(1, window.devicePixelRatio || 1);
+      canvas.width = Math.floor(cssW * dpr);
+      canvas.height = Math.floor(cssH * dpr);
+
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.clearRect(0, 0, cssW, cssH);
+
+      const values = [];
+      for (const r of rows) {
+        if (Number.isFinite(r.train)) values.push(r.train);
+        if (Number.isFinite(r.val)) values.push(r.val);
+      }
+      if (!values.length) {
+        ctx.fillStyle = getComputedStyle(document.body).getPropertyValue("--muted").trim() || "#5f6c7a";
+        ctx.font = "13px Segoe UI, sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText(localizeText("等待 loss 日志…"), cssW / 2, Math.floor(cssH / 2));
+        return;
+      }
+
+      const style = getComputedStyle(document.body);
+      const gridColor = style.getPropertyValue("--line").trim() || "#d8e2ef";
+      const textColor = style.getPropertyValue("--muted").trim() || "#5f6c7a";
+      const trainColor = style.getPropertyValue("--loss-train").trim() || "#0f766e";
+      const valColor = style.getPropertyValue("--loss-val").trim() || "#ea6a2a";
+
+      const left = 34;
+      const right = 12;
+      const top = 12;
+      const bottom = 22;
+      const w = Math.max(1, cssW - left - right);
+      const h = Math.max(1, cssH - top - bottom);
+
+      const minEpoch = rows[0].epoch;
+      const maxEpoch = rows[rows.length - 1].epoch;
+      const xOf = (ep) => left + ((maxEpoch === minEpoch ? 0.5 : (ep - minEpoch) / (maxEpoch - minEpoch)) * w);
+
+      let yMin = Math.min(...values);
+      let yMax = Math.max(...values);
+      if (yMax <= yMin) {
+        yMin -= 0.5;
+        yMax += 0.5;
+      } else {
+        const pad = (yMax - yMin) * 0.08;
+        yMin -= pad;
+        yMax += pad;
+      }
+      const yOf = (v) => top + (1 - (v - yMin) / (yMax - yMin)) * h;
+
+      ctx.strokeStyle = gridColor;
+      ctx.lineWidth = 1;
+      for (let i = 0; i <= 4; i += 1) {
+        const y = top + (h * i) / 4;
+        ctx.beginPath();
+        ctx.moveTo(left, y);
+        ctx.lineTo(left + w, y);
+        ctx.stroke();
+      }
+
+      drawLossSeries(ctx, rows, "train", trainColor, xOf, yOf);
+      drawLossSeries(ctx, rows, "val", valColor, xOf, yOf);
+
+      ctx.fillStyle = textColor;
+      ctx.font = "11px Segoe UI, sans-serif";
+      ctx.textAlign = "left";
+      ctx.fillText(`ep ${minEpoch}`, left, cssH - 6);
+      ctx.textAlign = "right";
+      ctx.fillText(`ep ${maxEpoch}`, left + w, cssH - 6);
+
+      ctx.textAlign = "left";
+      ctx.fillStyle = trainColor;
+      ctx.fillText("train_loss", left + 2, top + 12);
+      ctx.fillStyle = valColor;
+      ctx.fillText("val_loss", left + 86, top + 12);
+    }
+
+    function fmtDuration(ms) {
+      if (!Number.isFinite(ms) || ms < 0) return "--:--:--";
+      const sec = Math.floor(ms / 1000);
+      const h = Math.floor(sec / 3600);
+      const m = Math.floor((sec % 3600) / 60);
+      const s = sec % 60;
+      const hh = String(h).padStart(2, "0");
+      const mm = String(m).padStart(2, "0");
+      const ss = String(s).padStart(2, "0");
+      return `${hh}:${mm}:${ss}`;
+    }
+
+    function updateProgressFromLine(line) {
+      const info = parseEpochProgress(line);
+      if (!info) return;
+      if (info.tot > 0) progressTotalEpochs = info.tot;
+      if (info.cur >= progressCurrentEpoch) progressCurrentEpoch = info.cur;
+    }
+
+    function renderTrainingProgress() {
+      const titleEl = $("train-progress-title");
+      const metaEl = $("train-progress-meta");
+      const fillEl = $("train-progress-fill");
+      if (!titleEl || !metaEl || !fillEl) return;
+
+      let ratio = 0;
+      if (progressTotalEpochs > 0) {
+        ratio = Math.max(0, Math.min(1, progressCurrentEpoch / progressTotalEpochs));
+      }
+      if (!progressRunning && progressTotalEpochs > 0 && progressCurrentEpoch >= progressTotalEpochs) {
+        ratio = 1;
+      }
+      fillEl.style.width = `${(ratio * 100).toFixed(1)}%`;
+
+      if (progressTotalEpochs > 0) {
+        if (currentLang === "en") {
+          titleEl.textContent = `Progress: ${progressCurrentEpoch}/${progressTotalEpochs} epochs (${(ratio * 100).toFixed(1)}%)`;
+        } else {
+          titleEl.textContent = `训练进度：${progressCurrentEpoch}/${progressTotalEpochs} 轮（${(ratio * 100).toFixed(1)}%）`;
+        }
+      } else {
+        titleEl.textContent = localizeText("训练进度：等待日志");
+      }
+
+      const endRef = (!progressRunning && progressTaskEndMs > 0) ? progressTaskEndMs : Date.now();
+      const elapsedMs = progressTaskStartMs > 0 ? Math.max(0, endRef - progressTaskStartMs) : NaN;
+      let totalMs = NaN;
+      let remainMs = NaN;
+      if (Number.isFinite(elapsedMs) && progressCurrentEpoch > 0 && progressTotalEpochs > 0) {
+        totalMs = elapsedMs * (progressTotalEpochs / progressCurrentEpoch);
+        remainMs = Math.max(0, totalMs - elapsedMs);
+      } else if (!progressRunning && Number.isFinite(elapsedMs) && progressCurrentEpoch > 0 && progressTotalEpochs > 0) {
+        totalMs = elapsedMs;
+        remainMs = 0;
+      }
+
+      metaEl.textContent = `${localizeText("已训练：")}${fmtDuration(elapsedMs)} ｜ ${localizeText("预计总时长：")}${fmtDuration(totalMs)} ｜ ${localizeText("预计剩余：")}${fmtDuration(remainMs)}`;
+    }
+
+    function appendLogLines(items) {
+      const box = $("logs");
+      if (!box || !items || !items.length) return;
+      let lossChanged = false;
+      for (const x of items) {
+        updateProgressFromLine(x.line);
+        if (updateLossFromLine(x.line)) lossChanged = true;
+        box.textContent += `[${x.ts}] ${x.line}\n`;
+      }
+      renderTrainingProgress();
+      if (lossChanged) renderLossBoard();
+    }
+
+    function prependLogLines(items) {
+      const box = $("logs");
+      if (!box || !items || !items.length) return;
+      const prevTop = box.scrollTop;
+      const prevHeight = box.scrollHeight;
+      let head = "";
+      let lossChanged = false;
+      for (const x of items) {
+        updateProgressFromLine(x.line);
+        if (updateLossFromLine(x.line)) lossChanged = true;
+        head += `[${x.ts}] ${x.line}\n`;
+      }
+      box.textContent = head + box.textContent;
+      const nextHeight = box.scrollHeight;
+      box.scrollTop = prevTop + (nextHeight - prevHeight);
+      renderTrainingProgress();
+      if (lossChanged) renderLossBoard();
+    }
+
+    function resetLogsView() {
+      const box = $("logs");
+      if (box) box.textContent = "";
+      lastLogId = 0;
+      oldestLogId = 0;
+      loadingOlderLogs = false;
+      hasMoreOlderLogs = false;
+      progressCurrentEpoch = 0;
+      progressTotalEpochs = 0;
+      progressTaskStartMs = 0;
+      progressTaskEndMs = 0;
+      progressRunning = false;
+      lossByEpoch = new Map();
+      renderTrainingProgress();
+      renderLossBoard();
+    }
+
+    function renderStatus(data) {
+      const task = data.task;
+      if (!task) {
+        $("status").textContent = localizeText("当前无训练任务。");
+        $("btn-stop").disabled = true;
+        $("btn-start").disabled = false;
+        $("btn-start-simple").disabled = false;
+        progressRunning = false;
+        renderTrainingProgress();
+        return;
+      }
+      $("status").textContent = localizeText([
+        `task_id: ${task.task_id}`,
+        `status: ${task.status}`,
+        `mode: ${task.mode || "config"}`,
+        `config: ${task.config_path || "-"}`,
+        `command: ${task.command || "-"}`,
+        `pid: ${task.pid || "-"}`,
+        `created_at: ${fmtTime(task.created_at)}`,
+        `started_at: ${fmtTime(task.started_at)}`,
+        `finished_at: ${fmtTime(task.finished_at)}`,
+        `return_code: ${task.return_code == null ? "-" : task.return_code}`,
+      ].join("\n"));
+      const running = !!data.running;
+      $("btn-stop").disabled = !running;
+      $("btn-start").disabled = running;
+      $("btn-start-simple").disabled = running;
+      progressRunning = running;
+      if (task && task.started_at) {
+        const ms = Date.parse(task.started_at);
+        if (Number.isFinite(ms)) progressTaskStartMs = ms;
+      }
+      const finishedMs = task && task.finished_at ? Date.parse(task.finished_at) : NaN;
+      progressTaskEndMs = Number.isFinite(finishedMs) ? finishedMs : 0;
+      renderTrainingProgress();
+    }
+
+    async function refreshStatus() {
+      try {
+        const data = await api("/api/train/status");
+        renderStatus(data);
+      } catch (e) {
+        setErr(`读取状态失败: ${e.message}`);
+      }
+    }
+
+    async function refreshLogs() {
+      try {
+        const box = $("logs");
+        const stickBottom = !box || (box.scrollHeight - box.clientHeight - box.scrollTop) < 40;
+        const data = await api(`/api/train/logs?since_id=${lastLogId}&limit=300`);
+        const items = data.items || [];
+        if (items.length > 0) {
+          appendLogLines(items);
+          lastLogId = Number(items[items.length - 1].id) || lastLogId;
+          if (!oldestLogId) oldestLogId = Number(items[0].id) || 0;
+          if (box && stickBottom) box.scrollTop = box.scrollHeight;
+        }
+        const firstId = Number(data.first_id || 0);
+        if (!oldestLogId && firstId > 0) oldestLogId = firstId;
+        hasMoreOlderLogs = oldestLogId > 0 && firstId > 0 && oldestLogId > firstId;
+      } catch (e) {
+        setErr(`读取日志失败: ${e.message}`);
+      }
+    }
+
+    async function loadOlderLogs() {
+      if (loadingOlderLogs || !oldestLogId || !hasMoreOlderLogs) return;
+      loadingOlderLogs = true;
+      try {
+        const data = await api(`/api/train/logs?before_id=${oldestLogId}&limit=200`);
+        const items = data.items || [];
+        if (items.length > 0) {
+          prependLogLines(items);
+          oldestLogId = Number(items[0].id) || oldestLogId;
+          hasMoreOlderLogs = !!data.has_more_before;
+        } else {
+          hasMoreOlderLogs = false;
+        }
+      } catch (e) {
+        setErr(`读取更早日志失败: ${e.message}`);
+      } finally {
+        loadingOlderLogs = false;
+      }
+    }
+
+    function onLogsScroll() {
+      const box = $("logs");
+      if (!box) return;
+      if (box.scrollTop <= 4) loadOlderLogs();
+    }
+
+    function bindLogScrollPagination() {
+      const box = $("logs");
+      if (!box) return;
+      box.addEventListener("scroll", onLogsScroll);
+    }
+
+    function bindLossBoardResize() {
+      window.addEventListener("resize", () => {
+        renderLossBoard();
+      });
+    }
+
+    function resetLogsViewAfterStart() {
+      resetLogsView();
+      hasMoreOlderLogs = true;
+      progressRunning = true;
+      progressTaskStartMs = Date.now();
+      progressTaskEndMs = 0;
+      renderTrainingProgress();
+    }
+
+    async function startTrainByConfig() {
+      setErr("");
+      try {
+        await api("/api/train/start", "POST", {
+          mode: "config",
+          config_path: $("config-path").value.trim(),
+        });
+        resetLogsViewAfterStart();
+        await refreshStatus();
+      } catch (e) {
+        setErr(`启动失败: ${e.message}`);
+      }
+    }
+
+    async function startTrainSimple() {
+      setErr("");
+      const quickCfg = collectQuickConfigFromUI();
+      const annotations = quickCfg.annotations;
+      if (!annotations) {
+        setErr("快速模式至少需要填写标注文件。");
+        return;
+      }
+      const targetDims = quickCfg.target_dims || [];
+      if (!targetDims.length) {
+        setErr("请至少选择一个训练维度。");
+        return;
+      }
+      const payload = {
+        mode: "simple",
+        ...quickCfg,
+      };
+      try {
+        await api("/api/train/start", "POST", payload);
+        resetLogsViewAfterStart();
+        await refreshStatus();
+      } catch (e) {
+        setErr(`启动失败: ${e.message}`);
+      }
+    }
+
+    async function stopTrain() {
+      setErr("");
+      try {
+        await api("/api/train/stop", "POST", {});
+        await refreshStatus();
+      } catch (e) {
+        setErr(`停止失败: ${e.message}`);
+      }
+    }
+
+    async function loadDefaults() {
+      try {
+        const cfg = await api("/api/config");
+        const x = cfg.training || {};
+        if (x.default_config) $("config-path").value = String(x.default_config);
+      } catch (e) {
+        setErr(`读取默认配置失败: ${e.message}`);
+      }
+    }
+
+    async function loadQuickConfig(showMessage = false) {
+      if (showMessage) setErr("");
+      try {
+        const data = await api("/api/train/quick-config/load");
+        applyQuickConfigToUI(data.quick_config || {});
+        if (showMessage) setErr("快速参数已读取。");
+      } catch (e) {
+        setErr(`读取快速参数失败: ${e.message}`);
+      }
+    }
+
+    async function saveQuickConfig() {
+      setErr("");
+      try {
+        const data = await api("/api/train/quick-config/save", "POST", {
+          quick_config: collectQuickConfigFromUI(),
+        });
+        applyQuickConfigToUI(data.quick_config || {});
+        setErr("快速参数已保存。");
+      } catch (e) {
+        setErr(`保存快速参数失败: ${e.message}`);
+      }
+    }
+
+    async function loadYamlEditor() {
+      setErr("");
+      try {
+        const path = $("config-path").value.trim();
+        const qs = path ? `?path=${encodeURIComponent(path)}` : "";
+        const data = await api(`/api/train/config/load${qs}`);
+        if (data.config_path) $("config-path").value = String(data.config_path);
+        $("config-editor").value = String(data.yaml_text || "");
+      } catch (e) {
+        setErr(`读取YAML失败: ${e.message}`);
+      }
+    }
+
+    async function saveYamlEditor() {
+      setErr("");
+      const configPath = $("config-path").value.trim();
+      if (!configPath) {
+        setErr("配置路径不能为空。");
+        return;
+      }
+      try {
+        const data = await api("/api/train/config/save", "POST", {
+          config_path: configPath,
+          yaml_text: $("config-editor").value,
+        });
+        if (data.config_path) $("config-path").value = String(data.config_path);
+        setErr("YAML已保存。");
+      } catch (e) {
+        setErr(`保存YAML失败: ${e.message}`);
+      }
+    }
+
+    async function tick() {
+      await refreshStatus();
+      await refreshLogs();
+    }
+
+    $("btn-start").onclick = startTrainByConfig;
+    $("btn-start-simple").onclick = startTrainSimple;
+    $("btn-stop").onclick = stopTrain;
+    $("btn-refresh").onclick = tick;
+    $("btn-load-config").onclick = loadYamlEditor;
+    $("btn-save-config").onclick = saveYamlEditor;
+    $("btn-load-quick-config").onclick = () => loadQuickConfig(true);
+    $("btn-save-quick-config").onclick = saveQuickConfig;
+    $("btn-pick-config").onclick = () => pickPath("config-path", "config", "file");
+    $("btn-pick-annotations").onclick = () => pickPath("quick-annotations", "annotations", "file");
+    $("btn-pick-image-root").onclick = () => pickPath("quick-image-root", "image_root", "dir");
+    $("btn-pick-output-dir").onclick = () => pickPath("quick-output-dir", "output_dir", "dir");
+    $("config-path").onchange = loadYamlEditor;
+    $("start-mode").onchange = syncModeView;
+    $("theme-toggle").onclick = toggleTheme;
+    $("lang-toggle").onclick = toggleLanguage;
+
+    (async function init() {
+      initLanguage();
+      initTheme();
+      bindLogScrollPagination();
+      bindLossBoardResize();
+      syncModeView();
+      renderLossBoard();
+      await loadDefaults();
+      await loadQuickConfig();
+      await loadYamlEditor();
+      await tick();
+      if (pollTimer) clearInterval(pollTimer);
+      pollTimer = setInterval(tick, 2000);
+    })();
+  </script>
+</body>
+</html>

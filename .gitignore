@@ -1,0 +1,63 @@
+# OS / IDE
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+
+# Virtual environments
+.venv/
+venv/
+env/
+*/.venv/
+
+# Runtime / caches
+logs/
+*.log
+tmp/
+temp/
+*/__pycache__/
+__tmp*.py
+*/__tmp*.py
+
+# Local data and outputs (large / generated)
+labeling_ui/dataset/
+training_ui/outputs/
+infer_ui/outputs/
+infer_ui/dist/
+infer_ui/_models/
+model/
+batch/
+eval_ui/
+
+# Model artifacts
+*.pt
+*.pth
+*.bin
+*.ckpt
+*.safetensors
+*.onnx
+
+# Archives
+*.zip
+*.7z
+*.tar
+*.gz
+
+# Secrets
+.env
+.env.*
+*.pem
+*.key

@@ -1,0 +1,13 @@
+torch>=2.2.0
+torchvision>=0.17.0
+transformers>=4.44.0
+timm>=1.0.12
+open-clip-torch>=2.26.1
+safetensors>=0.4.5
+Pillow>=10.3.0
+einops>=0.7.0
+PyYAML>=6.0.2
+tqdm>=4.66.5
+fastapi>=0.115.0
+uvicorn>=0.30.6
+python-multipart>=0.0.9

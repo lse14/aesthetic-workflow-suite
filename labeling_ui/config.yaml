@@ -1,0 +1,101 @@
+ui:
+  language: zh-CN
+server:
+  host: 127.0.0.1
+  port: 9100
+sampling:
+  max_attempts: 3
+  request_timeout_sec: 20
+  request_retries: 2
+  request_retry_backoff_sec: 0.6
+  image_request_timeout_sec: 12
+  image_request_retries: 2
+  image_request_retry_backoff_sec: 0.5
+  source_fail_cooldown_sec: 20
+  min_side: 256
+sources:
+  weights:
+    danbooru: 0.2
+    e621: 0.4
+    local: 0.4
+  danbooru:
+    enabled: true
+    base_url: https://danbooru.donmai.us
+    tags: ''
+    limit: 100
+    user_agent: 'aesthetic-workflow-client/1.0 (public-config)'
+    username_env: DANBOORU_USERNAME
+    api_key_env: DANBOORU_API_KEY
+  e621:
+    enabled: true
+    base_url: https://e621.net
+    tags: ''
+    limit: 100
+    user_agent: 'aesthetic-workflow-client/1.0 (public-config)'
+    login_env: E621_LOGIN
+    api_key_env: E621_API_KEY
+  local:
+    enabled: true
+    paths:
+    - ./dataset/import/images_a
+    - ./dataset/import/images_b
+    - ./dataset/import/images_c
+    recursive: true
+    extensions:
+    - .jpg
+    - .jpeg
+    - .png
+    - .webp
+    - .bmp
+storage:
+  root_dir: dataset
+  images_dir: dataset/images
+  db_path: dataset/labels.db
+  webp_quality: 100
+rating_guide:
+  dimensions:
+    aesthetic:
+      title: 美学
+      description: 整体视觉质量与吸引力。
+      examples:
+        '1': 明显粗糙，细节缺失或画面脏乱。
+        '2': 可看但质量一般，观感偏平。
+        '3': 中等水平，主体清晰，缺少亮点。
+        '4': 质量较高，细节和氛围都不错。
+        '5': 非常优秀，细节、氛围与完成度都很强。
+    composition:
+      title: 构图
+      description: 主体安排、视觉引导与画面平衡。
+      examples:
+        '1': 构图混乱，主体不明确。
+        '2': 主体可辨识，但布局生硬。
+        '3': 构图基本合理，信息表达清楚。
+        '4': 构图成熟，视线引导自然。
+        '5': 构图非常出色，叙事与视觉层次强。
+    color:
+      title: 色彩
+      description: 配色、对比、色调统一性。
+      examples:
+        '1': 黑白,线稿
+        '2': 配色一般，有轻微不协调。
+        '3': 颜色基本协调，无明显问题。
+        '4': 配色舒服，氛围表达较好,光影优秀。
+        '5': 配色光影高级且有记忆点，氛围极佳。
+    sexual:
+      title: 色情
+      description: 色情程度强弱，不等同于质量好坏。
+      examples:
+        '1': 几乎无性暗示，安全向。
+        '2': 轻微性暗示，仍偏安全。
+        '3': 中度性暗示，边缘内容。
+        '4': 明显成人向，露骨较多。
+        '5': 高度露骨，强成人内容。
+    background:
+      title: 背景
+      description: 背景质量、完整度与环境表现。
+      examples:
+        '1': 背景缺失或非常粗糙，影响观感。
+        '2': 背景信息少，细节较弱。
+        '3': 背景基本完整，能支撑主体。
+        '4': 背景细节较好，氛围表达明显。
+        '5': 背景表现优秀，细节丰富且与主体融合自然。

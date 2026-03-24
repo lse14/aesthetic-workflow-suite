@@ -1,0 +1,3518 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Anime/Furry 图像快速标注</title>
+  <style>
+    :root {
+      --bg: #f5f7fb;
+      --card: #ffffff;
+      --fg: #17222e;
+      --muted: #5a6877;
+      --accent: #0f766e;
+      --accent-2: #e2f7f5;
+      --warn: #d97706;
+      --danger: #dc2626;
+      --line: #dfe5ec;
+      --blue: #1d4ed8;
+      --chip: #edf3fa;
+      --field-bg: #ffffff;
+      --field-line: #b7c4d4;
+      --shadow: 0 10px 24px rgba(15, 23, 42, 0.07);
+    }
+    body[data-theme="dark"] {
+      --bg: #0b1422;
+      --card: #111d2b;
+      --fg: #e5edf7;
+      --muted: #9db0c6;
+      --accent: #1f9d8f;
+      --accent-2: #184f48;
+      --warn: #f59e0b;
+      --danger: #ef4444;
+      --line: #25394f;
+      --blue: #3b82f6;
+      --chip: #1b2b3f;
+      --field-bg: #0f1b2a;
+      --field-line: #30475f;
+      --shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", "PingFang SC", sans-serif;
+      font-size: 12px;
+      color: var(--fg);
+      background:
+        radial-gradient(circle at 0% 0%, rgba(80, 151, 228, 0.2) 0, transparent 30%),
+        radial-gradient(circle at 100% 100%, rgba(57, 202, 157, 0.16) 0, transparent 40%),
+        var(--bg);
+      transition: background 180ms ease, color 180ms ease;
+    }
+    .wrap {
+      width: calc(100vw - 40px);
+      max-width: 2100px;
+      margin: 0 auto;
+      padding: 8px;
+    }
+    .row {
+      display: grid;
+      grid-template-columns: minmax(0, 2.2fr) minmax(360px, 0.95fr);
+      gap: 10px;
+      align-items: stretch;
+    }
+    .row > .card { height: 100%; }
+    .sample-card {
+      display: grid;
+      grid-template-columns: minmax(320px, 400px) minmax(0, 1fr);
+      grid-template-rows: auto auto minmax(0, 1fr) auto;
+      gap: 8px;
+      align-items: start;
+      min-height: 0;
+    }
+    .sample-card > .line:first-of-type { grid-column: 1 / -1; }
+    .sample-card > .viewer-row { grid-column: 2; display: contents; }
+    .sample-card > .viewer-row .guide-panel {
+      grid-column: 2;
+      grid-row: 2;
+    }
+    .sample-card > .viewer-row .img-box {
+      grid-column: 2;
+      grid-row: 3;
+      height: 100%;
+    }
+    .sample-card > .preview-panel {
+      grid-column: 1;
+      grid-row: 2 / span 2;
+      align-self: start;
+      max-height: calc(100vh - 170px);
+      overflow: auto;
+    }
+    .sample-card > .preview-panel .field-row,
+    .sample-card > .preview-panel .field-row-3 {
+      grid-template-columns: 1fr;
+    }
+    .sample-card > .preview-panel .preview-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .sample-card > .err { grid-column: 1 / -1; grid-row: 4; }
+    .viewer-row {
+      display: contents;
+    }
+    .left-tools { display: none; }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 8px;
+      box-shadow: var(--shadow);
+    }
+    .top { display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 5px; align-items: center; }
+    .top-actions { margin-left: auto; display: inline-flex; align-items: center; gap: 8px; }
+    .theme-toggle {
+      border: 1px solid var(--line);
+      background: var(--chip);
+      color: var(--fg);
+      border-radius: 999px;
+      padding: 4px 9px;
+      font-size: 10px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .stat {
+      padding: 3px 6px;
+      border-radius: 9px;
+      background: color-mix(in srgb, var(--chip) 85%, var(--card));
+      border: 1px solid var(--line);
+      min-width: 92px;
+    }
+    .stat span { display: block; font-size: 11px; line-height: 1.1; }
+    .stat b { display: block; font-size: 13px; line-height: 1.1; margin-top: 1px; }
+    .img-box {
+      width: 100%;
+      min-height: 46vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: color-mix(in srgb, var(--chip) 72%, var(--card));
+      border-radius: 9px;
+      overflow: hidden;
+      border: 1px dashed color-mix(in srgb, var(--line) 80%, var(--fg));
+    }
+    .img-box img { margin: 0 auto; }
+    .img-box img { cursor: zoom-in; }
+    img { max-width: 100%; max-height: 66vh; display: block; }
+    .lightbox {
+      position: fixed;
+      inset: 0;
+      z-index: 3000;
+      display: none;
+      align-items: stretch;
+      justify-content: stretch;
+      background: rgba(5, 10, 18, 0.88);
+      padding: 18px;
+    }
+    .lightbox.open {
+      display: flex;
+    }
+    .lightbox-stage {
+      width: 100%;
+      height: 100%;
+      overflow: auto;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding-top: 40px;
+      padding-bottom: 8px;
+      cursor: zoom-out;
+    }
+    .lightbox img {
+      max-width: min(96vw, 2200px);
+      max-height: 92vh;
+      border-radius: 8px;
+      box-shadow: 0 16px 48px rgba(0, 0, 0, 0.45);
+      transform: scale(var(--lb-zoom, 1));
+      transform-origin: center center;
+      transition: transform 90ms ease-out;
+      cursor: zoom-in;
+    }
+    .lightbox-toolbar {
+      position: absolute;
+      top: 16px;
+      left: 16px;
+      display: inline-flex;
+      gap: 6px;
+      align-items: center;
+      z-index: 1;
+      border: 1px solid #ffffff44;
+      background: #111827cc;
+      border-radius: 999px;
+      padding: 5px 8px;
+    }
+    .lightbox-toolbar button {
+      border: 1px solid #ffffff44;
+      background: #1f2937;
+      color: #fff;
+      border-radius: 999px;
+      min-width: 34px;
+      height: 30px;
+      cursor: pointer;
+      font-weight: 700;
+      line-height: 1;
+      padding: 0 8px;
+    }
+    .lightbox-zoom {
+      color: #dbeafe;
+      font-size: 12px;
+      min-width: 54px;
+      text-align: center;
+    }
+    .lightbox-close {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      border: 1px solid #ffffff66;
+      background: #111827cc;
+      color: #fff;
+      border-radius: 999px;
+      width: 36px;
+      height: 36px;
+      font-size: 20px;
+      line-height: 1;
+      cursor: pointer;
+    }
+    .controls { display: grid; gap: 6px; min-height: 0; align-content: start; }
+    .score-group { border: 1px solid var(--line); border-radius: 9px; padding: 6px; }
+    .score-title { font-weight: 700; margin-bottom: 4px; display: flex; justify-content: space-between; }
+    .buttons { display: flex; gap: 5px; }
+    .btn {
+      border: 1px solid var(--field-line); background: var(--field-bg); color: var(--fg);
+      border-radius: 7px; padding: 4px 7px; cursor: pointer;
+      transition: transform 120ms ease, border-color 120ms ease;
+    }
+    .btn:hover { transform: translateY(-1px); }
+    .btn:hover { border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); }
+    .btn.sel { background: var(--accent-2); border-color: var(--accent); color: #065f58; font-weight: 700; }
+    .btn.active-dim { outline: 2px solid #0f766e66; }
+    .line { display: flex; gap: 8px; flex-wrap: wrap; }
+    .action-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 6px;
+    }
+    .action {
+      border: 0; border-radius: 7px; padding: 7px 8px; cursor: pointer; color: #fff; font-weight: 700;
+      min-height: 34px;
+      text-align: center;
+      transition: transform 120ms ease, opacity 120ms ease;
+    }
+    .action:hover { transform: translateY(-1px); }
+    .submit { background: var(--accent); }
+    .skip { background: var(--warn); }
+    .next { background: var(--blue); }
+    .danger { background: var(--danger); }
+    .weights {
+      display: grid;
+      gap: 5px;
+      border: 1px solid var(--line);
+      border-radius: 9px;
+      padding: 7px;
+      background: color-mix(in srgb, var(--card) 90%, var(--chip));
+    }
+    .weights .line > label { min-width: 100px; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    input[type="number"], input[type="text"], textarea, select {
+      border: 1px solid var(--field-line); border-radius: 8px; padding: 4px 6px;
+      width: 100%;
+      background: var(--field-bg);
+      color: var(--fg);
+    }
+    input[type="number"]:focus, input[type="text"]:focus, textarea:focus, select:focus {
+      outline: none;
+      border-color: color-mix(in srgb, var(--accent) 78%, var(--line));
+      box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 20%, transparent);
+    }
+    textarea { min-height: 64px; resize: vertical; }
+    .muted { color: var(--muted); font-size: 11px; }
+    .err { color: var(--danger); font-weight: 700; min-height: 20px; }
+    details.settings { border: 1px solid var(--line); border-radius: 9px; padding: 6px; background: color-mix(in srgb, var(--card) 90%, var(--chip)); }
+    details.settings > summary { cursor: pointer; font-weight: 700; }
+    .settings-grid { display: grid; gap: 6px; margin-top: 6px; }
+    .field { display: grid; gap: 3px; }
+    .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+    .field-row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; }
+    .subcard { border: 1px solid var(--line); border-radius: 7px; padding: 6px; }
+    .subcard h4 { margin: 0 0 6px 0; }
+    .checkbox { display: flex; align-items: center; gap: 8px; }
+    .checkbox input { width: auto; }
+    .mono { font-family: Consolas, monospace; }
+    .guide-panel {
+      border: 1px solid var(--line);
+      border-radius: 9px;
+      padding: 7px;
+      background: color-mix(in srgb, var(--card) 90%, var(--chip));
+    }
+    .guide-title {
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+    .guide-lines {
+      display: grid;
+      gap: 4px;
+      font-size: 11px;
+    }
+    .guide-lines .hit {
+      background: #e6fffb;
+      border: 1px solid #9de4d9;
+      border-radius: 6px;
+      padding: 4px 6px;
+    }
+    .help-box {
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: color-mix(in srgb, var(--card) 89%, var(--chip));
+      padding: 7px;
+      font-size: 11px;
+      line-height: 1.5;
+    }
+    .meta-quick-guide {
+      margin-top: 8px;
+    }
+    .meta-panel .field-row {
+      align-items: end;
+    }
+    .meta-short {
+      min-width: 140px;
+    }
+    .hidden {
+      display: none !important;
+    }
+    .preview-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 5px;
+    }
+    .preview-card {
+      border: 3px solid color-mix(in srgb, var(--line) 84%, var(--fg));
+      border-radius: 9px;
+      overflow: hidden;
+      background: var(--card);
+      cursor: pointer;
+    }
+    .preview-card:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px #00000010;
+    }
+    .preview-card img {
+      width: 100%;
+      height: 104px;
+      object-fit: cover;
+      background: color-mix(in srgb, var(--chip) 82%, var(--card));
+      display: block;
+    }
+    .preview-meta {
+      padding: 5px 6px;
+      font-size: 11px;
+      display: grid;
+      gap: 2px;
+    }
+    .preview-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+    }
+    .preview-id {
+      font-weight: 700;
+    }
+    .preview-delete-btn {
+      border: 1px solid #ef4444;
+      color: #b91c1c;
+      background: #fff5f5;
+      border-radius: 6px;
+      padding: 1px 6px;
+      font-size: 11px;
+      cursor: pointer;
+      line-height: 1.5;
+    }
+    .preview-delete-btn:hover {
+      background: #ffe4e6;
+    }
+    body[data-theme="dark"] .preview-delete-btn {
+      background: #2b1518;
+      border-color: #fb7185;
+      color: #fecdd3;
+    }
+    body[data-theme="dark"] .preview-delete-btn:hover {
+      background: #3a1c20;
+    }
+    .preview-status-labeled {
+      border-color: #0f766e;
+      box-shadow: inset 0 0 0 2px #a7f3d0;
+    }
+    .preview-status-skipped {
+      border-color: #d97706;
+      box-shadow: inset 0 0 0 2px #fed7aa;
+    }
+    .preview-status-unreviewed {
+      border-color: #2563eb;
+      box-shadow: inset 0 0 0 2px #bfdbfe;
+    }
+    .preview-card.is-current {
+      border-color: #dc2626;
+      box-shadow:
+        inset 0 0 0 2px #fecaca,
+        0 0 0 2px color-mix(in srgb, #dc2626 38%, transparent);
+    }
+    body[data-theme="dark"] .preview-card.is-current {
+      border-color: #fb7185;
+      box-shadow:
+        inset 0 0 0 2px #4c1d24,
+        0 0 0 2px color-mix(in srgb, #fb7185 46%, transparent);
+    }
+    .preview-legend {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      font-size: 11px;
+      color: var(--muted);
+    }
+    .preview-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 3px 7px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: color-mix(in srgb, var(--card) 90%, var(--chip));
+    }
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      display: inline-block;
+    }
+    .dot-labeled { background: #0f766e; }
+    .dot-skipped { background: #d97706; }
+    .dot-unreviewed { background: #2563eb; }
+    .preview-panel > summary { font-size: 14px; }
+    .source-health-panel {
+      margin: 5px 0 8px;
+      border: 1px dashed #d1d5db;
+      border-radius: 10px;
+      background: #ffffffcc;
+      padding: 6px 8px;
+    }
+    body.dark .source-health-panel {
+      border-color: #334155;
+      background: #0b1220cc;
+    }
+    .source-health-panel > summary {
+      cursor: pointer;
+      font-weight: 700;
+      font-size: 12px;
+      color: #334155;
+    }
+    body.dark .source-health-panel > summary {
+      color: #cbd5e1;
+    }
+    .source-health-list {
+      margin-top: 5px;
+      display: grid;
+      gap: 5px;
+    }
+    .source-health-row {
+      display: grid;
+      grid-template-columns: 84px 62px 62px 1fr;
+      gap: 6px;
+      align-items: center;
+      font-size: 10px;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      padding: 4px 6px;
+      background: #f8fafc;
+    }
+    body.dark .source-health-row {
+      border-color: #374151;
+      background: #0f172a;
+    }
+    .source-health-chip {
+      display: inline-block;
+      border-radius: 999px;
+      padding: 2px 8px;
+      text-align: center;
+      font-size: 11px;
+      font-weight: 700;
+      line-height: 1.4;
+    }
+    .source-health-chip.ok { background: #dcfce7; color: #166534; }
+    .source-health-chip.fail { background: #fee2e2; color: #991b1b; }
+    .source-health-chip.off { background: #e5e7eb; color: #374151; }
+    body.dark .source-health-chip.ok { background: #14532d; color: #bbf7d0; }
+    body.dark .source-health-chip.fail { background: #7f1d1d; color: #fecaca; }
+    body.dark .source-health-chip.off { background: #334155; color: #e2e8f0; }
+    .source-health-time {
+      margin-top: 4px;
+      font-size: 10px;
+      color: #64748b;
+    }
+    body.dark .source-health-time { color: #94a3b8; }
+    @media (min-width: 1800px) {
+      .row {
+        grid-template-columns: minmax(0, 2.3fr) minmax(400px, 0.95fr);
+      }
+      .sample-card {
+        grid-template-columns: minmax(340px, 420px) minmax(0, 1fr);
+      }
+    }
+    @media (max-width: 1240px) {
+      .row { align-items: start; }
+      .row > .card { height: auto; }
+      .sample-card { grid-template-columns: 1fr; }
+      .viewer-row {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 8px;
+        align-items: start;
+      }
+      .sample-card > .viewer-row .guide-panel,
+      .sample-card > .viewer-row .img-box {
+        grid-column: auto;
+        grid-row: auto;
+      }
+      .sample-card > .line:first-of-type,
+      .sample-card > .viewer-row,
+      .sample-card > .preview-panel,
+      .sample-card > .err {
+        grid-column: 1;
+      }
+      .sample-card > .preview-panel {
+        grid-row: auto;
+        height: auto;
+        max-height: none;
+        overflow: visible;
+      }
+      .viewer-row { grid-template-columns: 1fr; }
+      .left-tools { display: none; }
+    }
+    @media (max-width: 1000px) {
+      .row { grid-template-columns: 1fr; }
+      .img-box { min-height: 46vh; }
+      .field-row, .field-row-3 { grid-template-columns: 1fr; }
+      .action-grid { grid-template-columns: 1fr 1fr; }
+      .preview-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .top-actions { width: 100%; justify-content: flex-end; }
+      .left-tools { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="top">
+      <div class="stat"><span>总样本</span><b id="st-total">0</b></div>
+      <div class="stat"><span>已标注</span><b id="st-labeled">0</b></div>
+      <div class="stat"><span>已跳过</span><b id="st-skipped">0</b></div>
+      <div class="stat"><span>未处理</span><b id="st-unreviewed">0</b></div>
+      <div class="stat"><span>图源连通</span><b id="st-source-health">检测中...</b></div>
+      <span class="top-actions">
+        <button id="lang-toggle" class="theme-toggle" type="button">EN</button>
+        <button id="theme-toggle" class="theme-toggle" type="button">夜间模式</button>
+      </span>
+    </div>
+    <details class="source-health-panel" id="source-health-panel">
+      <summary>可用图源详情（展开查看每个图源状态）</summary>
+      <div id="source-health-list" class="source-health-list">
+        <div class="muted">检测中...</div>
+      </div>
+      <div id="source-health-time" class="source-health-time"></div>
+    </details>
+
+    <div class="row">
+      <div class="card sample-card">
+        <div class="line" style="justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <div>
+            <b id="sample-meta">等待加载样本</b><br />
+            <a id="sample-link" href="#" target="_blank" class="muted" rel="noreferrer"></a>
+          </div>
+          <button class="btn" id="btn-refresh-stats">刷新统计</button>
+        </div>
+        <div class="viewer-row">
+          <div class="guide-panel">
+            <div class="guide-title" id="guide-title">评分示例</div>
+            <div class="muted" id="guide-desc"></div>
+            <div class="guide-lines" id="guide-lines"></div>
+          </div>
+          <div class="img-box">
+            <img id="img" alt="sample image" />
+          </div>
+        </div>
+        <div class="err" id="err"></div>
+
+        <details class="settings preview-panel" open>
+          <summary>样本预览与跳转（点击卡片跳转，点“删除”可移除样本）</summary>
+          <div class="settings-grid">
+            <div class="help-box">
+              说明：用于快速浏览历史样本，按状态/来源过滤并直接跳转回对应样本。<br />
+              边框颜色：绿色=已标注，橙色=已跳过，蓝色=未处理。<br />
+              注意：样本ID为数据库自增编号，删除样本后可能不连续，不等于总样本数。
+            </div>
+            <div class="field-row-3">
+              <div class="field">
+                <label>状态筛选</label>
+                <select id="preview-status">
+                  <option value="all">全部</option>
+                  <option value="labeled">仅已标注</option>
+                  <option value="skipped">仅已跳过</option>
+                  <option value="unreviewed">仅未处理</option>
+                </select>
+              </div>
+              <div class="field">
+                <label>来源筛选</label>
+                <select id="preview-source">
+                  <option value="">全部来源</option>
+                </select>
+              </div>
+              <div class="field">
+                <label>每页数量</label>
+                <select id="preview-size">
+                  <option value="16">16</option>
+                  <option value="24" selected>24</option>
+                  <option value="36">36</option>
+                  <option value="48">48</option>
+                </select>
+              </div>
+            </div>
+            <div class="field-row">
+              <div class="field">
+                <label>排序方式</label>
+                <select id="preview-order">
+                  <option value="desc">倒序（新 -> 旧）</option>
+                  <option value="asc">顺序（旧 -> 新）</option>
+                </select>
+              </div>
+            </div>
+            <div class="field-row">
+              <div class="field">
+                <label>目标域筛选</label>
+                <select id="preview-in-domain">
+                  <option value="all">全部</option>
+                  <option value="1">仅目标域</option>
+                  <option value="0">仅非目标域</option>
+                </select>
+              </div>
+              <div class="field">
+                <label>内容种类</label>
+                <select id="preview-content-type">
+                  <option value="all">全部种类</option>
+                  <option value="anime_illust">二次元插画</option>
+                  <option value="manga">漫画/分镜</option>
+                  <option value="ai_gen">AI生成</option>
+                  <option value="photo_real">写实照片</option>
+                  <option value="garbage">垃圾样本</option>
+                  <option value="other">其他</option>
+                </select>
+              </div>
+            </div>
+            <div class="field-row">
+              <div class="field">
+                <label>评分维度</label>
+                <select id="preview-score-dim">
+                  <option value="all">全部维度</option>
+                  <option value="aesthetic">美学</option>
+                  <option value="composition">构图</option>
+                  <option value="color">色彩</option>
+                  <option value="sexual">色情</option>
+                </select>
+              </div>
+              <div class="field">
+                <label>分数</label>
+                <select id="preview-score-value">
+                  <option value="all">全部分数</option>
+                  <option value="1">1</option>
+                  <option value="2">2</option>
+                  <option value="3">3</option>
+                  <option value="4">4</option>
+                  <option value="5">5</option>
+                </select>
+              </div>
+            </div>
+            <div class="line">
+              <button class="btn" id="btn-preview-first" type="button">首页</button>
+              <button class="btn" id="btn-preview-refresh" type="button">刷新预览</button>
+              <button class="btn" id="btn-preview-prev" type="button">上一页</button>
+              <button class="btn" id="btn-preview-next" type="button">下一页</button>
+              <button class="btn" id="btn-preview-last" type="button">末页</button>
+              <input id="preview-page-jump" type="number" min="1" step="1" placeholder="页码" style="width:90px;" />
+              <button class="btn" id="btn-preview-jump" type="button">跳转</button>
+              <span class="muted" id="preview-page-info">页 0/0，样本 0</span>
+            </div>
+            <div class="preview-legend">
+              <span class="preview-chip"><span class="dot dot-labeled"></span> 已标注</span>
+              <span class="preview-chip"><span class="dot dot-skipped"></span> 已跳过</span>
+              <span class="preview-chip"><span class="dot dot-unreviewed"></span> 未处理</span>
+            </div>
+            <div class="preview-grid" id="preview-grid"></div>
+          </div>
+        </details>
+      </div>
+
+      <div class="card controls">
+        <div class="subcard" style="margin-bottom:8px;">
+          <div class="field-row">
+            <div class="field">
+              <label>标注模式</label>
+              <select id="single-dim-mode">
+                <option value="1">单维高效模式（推荐）</option>
+                <option value="0">全维模式</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>当前维度</label>
+              <select id="single-dim-target">
+                <option value="aesthetic">美学</option>
+                <option value="composition">构图</option>
+                <option value="color">色彩</option>
+                <option value="sexual">色情</option>
+              </select>
+            </div>
+            <div class="field">
+              <label class="checkbox"><input id="single-dim-auto-next" type="checkbox" /> 1~5 后自动保存并下一张</label>
+            </div>
+          </div>
+          <div class="muted">单维模式下仅显示并修改当前维度，适合按维度分轮标注。</div>
+        </div>
+        <div id="score-root"></div>
+
+        <div class="subcard meta-panel">
+          <h4>训练筛选标签</h4>
+          <div class="muted">用于后续训练集清洗。建议为每张图都设置，导出时可按这些字段自动过滤。</div>
+          <div class="field-row">
+            <div class="field">
+              <label>是否目标域（in_domain）</label>
+              <select id="meta-in-domain">
+                <option value="1">是（anime/furry 目标域）</option>
+                <option value="0">否（非目标域）</option>
+              </select>
+            </div>
+            <div class="field" id="meta-content-type-field">
+              <label>内容类型（content_type）</label>
+              <select id="meta-content-type">
+                <option value="anime_illust">anime_illust（二次元插画）</option>
+                <option value="manga">manga（漫画/分镜）</option>
+                <option value="ai_gen">ai_gen（AI生成）</option>
+                <option value="photo_real">photo_real（写实照片）</option>
+                <option value="garbage">garbage（损坏/水印/重复/错标/截图）</option>
+                <option value="other">other（其他）</option>
+              </select>
+            </div>
+          </div>
+          <div class="field-row">
+            <div class="field">
+              <label class="checkbox"><input id="meta-exclude-score" type="checkbox" /> 排除打分头训练（exclude_from_score_train）</label>
+              <label class="checkbox"><input id="meta-exclude-cls" type="checkbox" /> 排除分类头训练（exclude_from_cls_train）</label>
+            </div>
+          </div>
+          <div class="line">
+            <button class="btn meta-short" id="btn-mark-in-domain" type="button">一键标记目标域</button>
+            <button class="btn meta-short" id="btn-mark-out-domain-keep" type="button">一键标记域外（排除打分）</button>
+            <button class="btn meta-short" id="btn-mark-exclude" type="button">一键排除</button>
+          </div>
+          <div class="help-box meta-quick-guide">
+            <b>怎么选（简单版）</b><br />
+            正常打分的图：选“目标域”，同时训练打分头和分类头（两个排除都不勾）。<br />
+            特殊图片：选“非目标域”，只训练分类头不训练打分头（勾“排除打分头训练”，不勾“排除分类头训练”）。
+          </div>
+        </div>
+
+        <div class="action-grid">
+          <button class="action next" id="btn-prev" type="button">上一张（Backspace）</button>
+          <button class="action next" id="btn-save-only" type="button">保存修改（Ctrl+Enter）</button>
+          <button class="action next" id="btn-next" type="button">下一张（Space）</button>
+          <button class="action skip" id="btn-skip" type="button">跳过（X）</button>
+          <button class="action submit" id="btn-submit-preview-next" type="button">保存并下一张（预览顺序）</button>
+          <button class="action danger" id="btn-delete-current" type="button">删除当前样本</button>
+        </div>
+
+        <details class="settings">
+          <summary>设置面板（YAML 可视化）</summary>
+          <div class="settings-grid">
+            <div class="muted">当前配置文件: <span class="mono" id="cfg-file-path">-</span></div>
+            <div class="help-box">
+              <b>快速上手（推荐只改这几项）</b><br />
+              1. 抽样比例: 上方 `danbooru/e621/local` 三个权重。<br />
+              2. 标签过滤: Danbooru/e621 的 `tags`。<br />
+              3. 本地路径: Local 的 `paths`（每行一个目录）。<br />
+              4. 评分标准: 下方“评分标准（可自定义）”。<br />
+              5. 保存后可直接生效（host/port 除外）。<br />
+            </div>
+            <div class="subcard">
+              <h4>服务设置（server）</h4>
+              <div class="muted">控制 WebUI 服务监听地址。修改后需重启服务生效。</div>
+              <div class="field-row-3">
+                <div class="field">
+                  <label>监听地址（host）</label>
+                  <input id="set-server-host" type="text" />
+                </div>
+                <div class="field">
+                  <label>端口（port）</label>
+                  <input id="set-server-port" type="number" min="1" />
+                </div>
+                <div class="field">
+                  <label>界面语言（ui.language）</label>
+                  <input id="set-ui-language" type="text" />
+                </div>
+              </div>
+            </div>
+
+            <div class="subcard">
+              <h4>抽样设置（sampling）</h4>
+              <div class="muted">控制每次取图时的重试、超时和最小分辨率过滤。</div>
+              <div class="field-row-3">
+                <div class="field">
+                  <label>最大重试次数（max_attempts）</label>
+                  <input id="set-sampling-max-attempts" type="number" min="1" />
+                </div>
+                <div class="field">
+                  <label>请求超时秒数（request_timeout_sec）</label>
+                  <input id="set-sampling-timeout" type="number" min="1" step="1" />
+                </div>
+                <div class="field">
+                  <label>最小边长像素（min_side）</label>
+                  <input id="set-sampling-min-side" type="number" min="1" />
+                </div>
+              </div>
+              <div class="field-row">
+                <div class="field">
+                  <label>请求重试次数（request_retries）</label>
+                  <input id="set-sampling-retries" type="number" min="0" step="1" />
+                </div>
+                <div class="field"></div>
+              </div>
+              <div class="field-row-3">
+                <div class="field">
+                  <label>抽样比例 danbooru（sources.weights.danbooru）</label>
+                  <input id="w-danbooru" type="number" step="0.05" min="0" />
+                </div>
+                <div class="field">
+                  <label>抽样比例 e621（sources.weights.e621）</label>
+                  <input id="w-e621" type="number" step="0.05" min="0" />
+                </div>
+                <div class="field">
+                  <label>抽样比例 local（sources.weights.local）</label>
+                  <input id="w-local" type="number" step="0.05" min="0" />
+                </div>
+              </div>
+              <div class="muted">比例用于“下一张”抽样；点击“保存设置到 YAML”后会持久化到配置文件。</div>
+            </div>
+
+            <div class="subcard">
+              <h4>Danbooru 图源</h4>
+              <div class="muted">使用 Danbooru API 抽样。推荐配置账号/API Key 以提升稳定性。</div>
+              <label class="checkbox"><input id="set-danbooru-enabled" type="checkbox" /> 启用该来源（enabled）</label>
+              <div class="field-row">
+                <div class="field"><label>API 地址（base_url）</label><input id="set-danbooru-base-url" type="text" /></div>
+                <div class="field"><label>单次请求条数（limit）</label><input id="set-danbooru-limit" type="number" min="1" /></div>
+              </div>
+              <div class="field"><label>标签过滤（tags）</label><input id="set-danbooru-tags" type="text" /></div>
+              <div class="field"><label>请求标识（user_agent）</label><input id="set-danbooru-user-agent" type="text" /></div>
+              <div class="field-row">
+                <div class="field"><label>用户名（环境变量名或直接值，username_env）</label><input id="set-danbooru-username-env" type="text" /></div>
+                <div class="field"><label>密钥（环境变量名或直接值，api_key_env）</label><input id="set-danbooru-api-key-env" type="text" /></div>
+              </div>
+            </div>
+
+            <div class="subcard">
+              <h4>e621 图源</h4>
+              <div class="muted">e621 建议必须填写可识别 User-Agent，并控制请求速率。</div>
+              <label class="checkbox"><input id="set-e621-enabled" type="checkbox" /> 启用该来源（enabled）</label>
+              <div class="field-row">
+                <div class="field"><label>API 地址（base_url）</label><input id="set-e621-base-url" type="text" /></div>
+                <div class="field"><label>单次请求条数（limit）</label><input id="set-e621-limit" type="number" min="1" /></div>
+              </div>
+              <div class="field"><label>标签过滤（tags）</label><input id="set-e621-tags" type="text" /></div>
+              <div class="field"><label>请求标识（user_agent）</label><input id="set-e621-user-agent" type="text" /></div>
+              <div class="field-row">
+                <div class="field"><label>登录名（环境变量名或直接值，login_env）</label><input id="set-e621-login-env" type="text" /></div>
+                <div class="field"><label>密钥（环境变量名或直接值，api_key_env）</label><input id="set-e621-api-key-env" type="text" /></div>
+              </div>
+            </div>
+
+            <div class="subcard">
+              <h4>本地图源（local）</h4>
+              <div class="muted">从本地目录/文件随机抽样。路径可多行填写。</div>
+              <label class="checkbox"><input id="set-local-enabled" type="checkbox" /> 启用该来源（enabled）</label>
+              <label class="checkbox"><input id="set-local-recursive" type="checkbox" /> 递归扫描子目录（recursive）</label>
+              <div class="field">
+                <label>路径列表（paths，每行一个）</label>
+                <textarea id="set-local-paths"></textarea>
+              </div>
+              <div class="field">
+                <label>扩展名（extensions，逗号分隔）</label>
+                <input id="set-local-extensions" type="text" />
+              </div>
+              <div class="line">
+                <button class="btn" id="btn-reindex" type="button">重建本地索引</button>
+                <span class="muted">当你修改本地路径、扩展名或新增文件后，点击此按钮刷新可抽样列表。</span>
+              </div>
+            </div>
+
+            <div class="subcard">
+              <h4>存储设置（storage）</h4>
+              <div class="muted">下载或读取后的图像统一转存为 WebP，并写入本地数据库。</div>
+              <div class="field-row">
+                <div class="field"><label>数据根目录（root_dir）</label><input id="set-storage-root-dir" type="text" /></div>
+                <div class="field"><label>图片目录（images_dir）</label><input id="set-storage-images-dir" type="text" /></div>
+              </div>
+              <div class="field-row">
+                <div class="field"><label>数据库路径（db_path）</label><input id="set-storage-db-path" type="text" /></div>
+                <div class="field"><label>WebP 质量（webp_quality, 1-100）</label><input id="set-storage-webp-quality" type="number" min="1" max="100" /></div>
+              </div>
+            </div>
+
+            <div class="subcard">
+              <h4>评分标准（可自定义）</h4>
+              <div class="muted">每个维度都可设置“描述 + 1~5 分示例”。示例格式必须为每行 `分值:说明`，例如 `4:构图成熟，视线引导自然`。</div>
+              <div class="field-row">
+                <div class="field">
+                  <label>美学描述</label>
+                  <input id="set-guide-aesthetic-desc" type="text" />
+                </div>
+                <div class="field">
+                  <label>构图描述</label>
+                  <input id="set-guide-composition-desc" type="text" />
+                </div>
+              </div>
+              <div class="field-row">
+                <div class="field">
+                  <label>色彩描述</label>
+                  <input id="set-guide-color-desc" type="text" />
+                </div>
+                <div class="field">
+                  <label>色情描述</label>
+                  <input id="set-guide-sexual-desc" type="text" />
+                </div>
+              </div>
+              <div class="field-row">
+                <div class="field">
+                  <label>美学示例（每行: `分值:说明`）</label>
+                  <textarea id="set-guide-aesthetic-examples"></textarea>
+                </div>
+                <div class="field">
+                  <label>构图示例（每行: `分值:说明`）</label>
+                  <textarea id="set-guide-composition-examples"></textarea>
+                </div>
+              </div>
+              <div class="field-row">
+                <div class="field">
+                  <label>色彩示例（每行: `分值:说明`）</label>
+                  <textarea id="set-guide-color-examples"></textarea>
+                </div>
+                <div class="field">
+                  <label>色情示例（每行: `分值:说明`）</label>
+                  <textarea id="set-guide-sexual-examples"></textarea>
+                </div>
+              </div>
+            </div>
+
+            <div class="subcard">
+              <h4>快捷键设置（仅当前浏览器）</h4>
+              <div class="muted">可自定义“按钮操作”的快捷键。避免使用 1~5 与 Ctrl+1~5（它们用于多维切换与打分）。</div>
+              <div class="field-row">
+                <div class="field"><label>上一张</label><input id="set-hotkey-prev" type="text" placeholder="Backspace" /></div>
+                <div class="field"><label>保存修改</label><input id="set-hotkey-save-only" type="text" placeholder="Ctrl+Enter" /></div>
+              </div>
+              <div class="field-row">
+                <div class="field"><label>跳过</label><input id="set-hotkey-skip" type="text" placeholder="X" /></div>
+              </div>
+              <div class="field-row">
+                <div class="field"><label>下一张</label><input id="set-hotkey-next" type="text" placeholder="Space" /></div>
+                <div class="field"><label>保存并下一张（预览顺序）</label><input id="set-hotkey-submit-preview-next" type="text" placeholder="Shift+Enter" /></div>
+              </div>
+              <div class="line">
+                <button class="btn" id="btn-save-hotkeys" type="button">保存快捷键</button>
+                <button class="btn" id="btn-reset-hotkeys" type="button">恢复默认</button>
+              </div>
+            </div>
+
+            <div class="help-box">
+              <b>图站 API 使用说明（重点）</b><br />
+              1. Danbooru:<br />
+              - 推荐设置 `DANBOORU_USERNAME`、`DANBOORU_API_KEY`。<br />
+              - 建议填写 `user_agent`，避免 403。<br />
+              - `tags` 可填如: `1girl solo rating:s score:>20`。<br />
+              2. e621:<br />
+              - 必须填写可识别 `user_agent`（建议含用途+联系方式）。<br />
+              - 推荐设置 `E621_LOGIN`、`E621_API_KEY`。<br />
+              - 建议降低请求频率，避免风控。<br />
+              3. 本地源:<br />
+              - `paths` 每行一个目录/文件，支持多行。<br />
+              - 修改后请点“重建本地索引”。<br />
+              4. 生效规则:<br />
+              - `host/port` 修改后需重启服务。<br />
+              - 其余设置保存后会立即生效。<br />
+              <br />
+              <span class="mono">cmd 示例:</span><br />
+              <span class="mono">set DANBOORU_USERNAME=your_name</span><br />
+              <span class="mono">set DANBOORU_API_KEY=your_api_key</span><br />
+              <span class="mono">set E621_LOGIN=your_name</span><br />
+              <span class="mono">set E621_API_KEY=your_api_key</span>
+            </div>
+
+            <div class="line">
+              <button class="action submit" id="btn-save-settings">保存设置到 YAML</button>
+              <button class="action next" id="btn-reload-settings">重载设置</button>
+            </div>
+            <div class="muted">提示: 配置保存失败时请检查端口范围、路径权限、以及 e621 的 user_agent 是否为空。</div>
+          </div>
+        </details>
+
+        <div class="muted" id="shortcut-hint">
+          快捷键: 多维模式 Ctrl+1~5 切维度、1~5 打分；单维模式 1~5 打分。Shift+Enter 保存并下一张（预览顺序）, Ctrl+Enter 仅保存, Backspace 上一张, X 跳过, Space 下一张。
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="lightbox" id="img-lightbox" aria-hidden="true">
+    <div class="lightbox-toolbar">
+      <button id="img-lightbox-zoom-out" type="button" title="缩小">-</button>
+      <span class="lightbox-zoom" id="img-lightbox-zoom-text">160%</span>
+      <button id="img-lightbox-zoom-in" type="button" title="放大">+</button>
+      <button id="img-lightbox-zoom-reset" type="button" title="1:1">1:1</button>
+      <button id="img-lightbox-zoom-fit" type="button" title="适配">适配</button>
+    </div>
+    <button class="lightbox-close" id="img-lightbox-close" type="button" title="关闭">×</button>
+    <div class="lightbox-stage" id="img-lightbox-stage">
+      <img id="img-lightbox-img" alt="zoomed sample image" />
+    </div>
+  </div>
+
+  <script>
+    const dims = [
+      { key: "aesthetic", name: "美学", hotkey: "Ctrl+1" },
+      { key: "composition", name: "构图", hotkey: "Ctrl+2" },
+      { key: "color", name: "色彩", hotkey: "Ctrl+3" },
+      { key: "sexual", name: "色情", hotkey: "Ctrl+4" },
+    ];
+    const DEFAULT_GUIDE = {
+      dimensions: {
+        aesthetic: { title: "美学", description: "整体视觉质量与吸引力。", examples: { "1": "", "2": "", "3": "", "4": "", "5": "" } },
+        composition: { title: "构图", description: "主体安排、视觉引导与画面平衡。", examples: { "1": "", "2": "", "3": "", "4": "", "5": "" } },
+        color: { title: "色彩", description: "配色、对比、色调统一性。", examples: { "1": "", "2": "", "3": "", "4": "", "5": "" } },
+        sexual: { title: "色情", description: "色情程度强弱，不等同于质量好坏。", examples: { "1": "", "2": "", "3": "", "4": "", "5": "" } },
+      }
+    };
+    const DEFAULT_LABEL_META = {
+      in_domain: 1,
+      content_type: "anime_illust",
+      exclude_from_score_train: 0,
+      exclude_from_cls_train: 0,
+      exclude_reason: "",
+    };
+    const CONTENT_TYPE_LABELS = {
+      anime_illust: "二次元插画",
+      manga: "漫画/分镜",
+      ai_gen: "AI生成",
+      photo_real: "写实照片",
+      garbage: "垃圾样本",
+      other: "其他",
+    };
+    let activeDim = "aesthetic";
+    let singleDimMode = true;
+    let autoNextOnScore = false;
+    let scores = { aesthetic: null, composition: null, color: null, sexual: null };
+    let currentSample = null;
+    let settingsCache = null;
+    let guideCache = JSON.parse(JSON.stringify(DEFAULT_GUIDE));
+    let sampleHistory = [];
+    let historyIndex = -1;
+    let previewOrderIds = [];
+    let previewOrderPage = 1;
+    let previewOrderIndex = -1;
+    let previewNavActive = false;
+    const sampleCache = {};
+    const PREFETCH_QUEUE_SIZE = 50;
+    const PREFETCH_WAIT_ON_PROMISE_MS = 180;
+    const PREFETCH_RETRY_DELAY_MS = 420;
+    const PREFETCH_MAINTAIN_INTERVAL_MS = 1200;
+    const PREFETCH_MAINTAIN_HISTORY_LIMIT = 80;
+    let prefetchedSamples = [];
+    let prefetchPromise = null;
+    let prefetchWeightsKey = "";
+    let prefetchToken = 0;
+    let prefetchMaintainTimer = null;
+    let prefetchMaintainTicking = false;
+    const preloadedImagePromises = new Map();
+    const preloadedImageOrder = [];
+    const MAX_PRELOADED_IMAGES = 160;
+    let sampleImageToken = 0;
+    let nextInFlight = false;
+    const LIGHTBOX_ZOOM_MIN = 1.0;
+    const LIGHTBOX_ZOOM_MAX = 4.0;
+    const LIGHTBOX_ZOOM_STEP = 0.2;
+    const LIGHTBOX_ZOOM_DEFAULT = 1.6;
+    let lightboxZoom = LIGHTBOX_ZOOM_DEFAULT;
+    const HOTKEY_STORAGE_KEY = "labeling.shortcuts.v1";
+    const SESSION_STORAGE_KEY = "labeling.session.v1";
+    const DEFAULT_HOTKEYS = {
+      prev: "Backspace",
+      save_only: "Ctrl+Enter",
+      submit_preview_next: "Shift+Enter",
+      skip: "X",
+      next: "Space",
+    };
+    let hotkeys = { ...DEFAULT_HOTKEYS };
+    const previewState = {
+      page: 1,
+      pages: 0,
+      total: 0,
+      size: 24,
+      status: "all",
+      source: "",
+      order: "desc",
+      in_domain: "all",
+      content_type: "all",
+      score_dim: "all",
+      score_value: "all",
+    };
+
+    const $ = (id) => document.getElementById(id);
+    const THEME_KEY = "vibecode.labeling.theme";
+    const LANG_KEY = "vibecode.labeling.lang";
+    let currentLang = "zh-CN";
+    const ZH_EN = {
+      "Anime/Furry 图像快速标注": "Anime/Furry Quick Labeling",
+      "总样本": "Total",
+      "已标注": "Labeled",
+      "已跳过": "Skipped",
+      "未处理": "Unreviewed",
+      "图源连通": "Source Health",
+      "检测中...": "Checking...",
+      "未启用": "Disabled",
+      "可用": "Available",
+      "检测失败": "Check Failed",
+      "夜间模式": "Dark Mode",
+      "日间模式": "Light Mode",
+      "等待加载样本": "Waiting for sample",
+      "刷新统计": "Refresh Stats",
+      "样本预览与跳转（点击卡片跳转，点“删除”可移除样本）": "Sample Preview & Jump (click card to jump, Delete removes sample)",
+      "注意：样本ID为数据库自增编号，删除样本后可能不连续，不等于总样本数。": "Note: sample ID is auto-incremented by DB and can be non-contiguous after deletions; it is not equal to total samples.",
+      "状态筛选": "Status",
+      "来源筛选": "Source",
+      "每页数量": "Page Size",
+      "目标域筛选": "In-domain Filter",
+      "评分维度": "Score Dimension",
+      "分数": "Score",
+      "刷新预览": "Refresh Preview",
+      "首页": "First",
+      "上一页": "Prev",
+      "下一页": "Next",
+      "末页": "Last",
+      "跳转": "Go",
+      "页码": "Page No.",
+      "样本ID ": "Sample ID ",
+      "序号 ": "Index ",
+      "训练筛选标签": "Training Filter Labels",
+      "用于后续训练集清洗。建议为每张图都设置，导出时可按这些字段自动过滤。": "Used for training set cleaning. Set per image and export can filter by these fields.",
+      "是否目标域（in_domain）": "In-domain (in_domain)",
+      "内容类型（content_type）": "Content Type (content_type)",
+      "排除打分头训练（exclude_from_score_train）": "Exclude score head (exclude_from_score_train)",
+      "排除分类头训练（exclude_from_cls_train）": "Exclude cls head (exclude_from_cls_train)",
+      "一键标记目标域": "Mark In-domain",
+      "一键标记域外（排除打分）": "Mark Out-domain (exclude score)",
+      "一键排除": "Exclude Both",
+      "怎么选（简单版）": "How to Choose (Simple)",
+      "正常打分的图：选“目标域”，同时训练打分头和分类头（两个排除都不勾）。": "Normal scoring images: choose In-domain, train both score and cls heads (do not check exclude boxes).",
+      "特殊图片：选“非目标域”，只训练分类头不训练打分头（勾“排除打分头训练”，不勾“排除分类头训练”）。": "Special images: choose Out-domain, train cls head only (check exclude score, keep cls not excluded).",
+      "上一张（Backspace）": "Prev (Backspace)",
+      "保存修改（Ctrl+Enter）": "Save (Ctrl+Enter)",
+      "下一张（Space）": "Next (Space)",
+      "跳过（X）": "Skip (X)",
+      "提交并下一张（Enter）": "Submit + Next (Enter)",
+      "设置面板（YAML 可视化）": "Settings (YAML UI)",
+      "已标注（可修改）": "Labeled (editable)",
+      "目标域": "In-domain",
+      "非目标域": "Out-domain",
+      "打分排除": "Score Excluded",
+      "打分保留": "Score Kept",
+      "分类排除": "Cls Excluded",
+      "分类保留": "Cls Kept",
+      "当前: ": "Current: ",
+      "页 ": "Page ",
+      "样本 ": "Samples ",
+      "当前筛选下没有样本。": "No samples for current filter.",
+      "类型: ": "Type: ",
+      "排除打分": "Exclude Score",
+      "排除分类": "Exclude Cls",
+      "删除": "Delete",
+      "全部来源": "All Sources",
+      "读取上次打分样本失败，已切换到新样本：": "Failed to load last scored sample, switched to new sample: ",
+      "没有可返回的历史样本。": "No previous reviewed sample.",
+      "已保存当前标注。": "Current annotation saved.",
+      "简中": "ZH",
+      "全部": "All",
+      "仅已标注": "Labeled Only",
+      "仅已跳过": "Skipped Only",
+      "仅未处理": "Unreviewed Only",
+      "仅目标域": "In-domain Only",
+      "仅非目标域": "Out-domain Only",
+      "全部维度": "All Dimensions",
+      "全部分数": "All Scores",
+      "上一张": "Prev",
+      "下一张": "Next",
+      "保存修改": "Save",
+      "提交并下一张": "Submit + Next",
+      "跳过": "Skip",
+      "关闭": "Close",
+      "放大": "Zoom In",
+      "缩小": "Zoom Out",
+      "适配": "Fit",
+      "恢复默认": "Reset Default",
+      "保存设置到 YAML": "Save Settings to YAML",
+      "保存快捷键": "Save Hotkeys",
+      "AI生成": "AI Generated",
+      "二次元插画": "Anime Illustration",
+      "漫画/分镜": "Manga/Storyboard",
+      "写实照片": "Photoreal Photo",
+      "垃圾样本": "Garbage Sample",
+      "其他": "Other",
+      "类型:": "Type:",
+      "当前:": "Current:",
+      "样本": "Samples",
+      "未标注": "Unlabeled",
+      "未指定（使用默认配置）": "Not specified (use default config)",
+      "快捷键已保存。": "Hotkeys saved.",
+      "快捷键已恢复默认。": "Hotkeys reset to default.",
+      "设置已保存并应用。若修改了 server host/port，请重启服务。": "Settings saved and applied. Restart service if server host/port changed.",
+      "请输入有效页码。": "Please enter a valid page number.",
+      "已经是当前加载序列最后一张。要抽取新图，请使用“提交并下一张”或先标注/跳过当前图。": "This is already the last sample in loaded sequence. To fetch a new image, use \"Submit + Next\" or annotate/skip current sample first.",
+      "排除打分": "Exclude Score",
+      "排除分类": "Exclude Cls",
+      "怎么选（简单版）": "How to Choose (Simple)",
+      "样本预览与跳转（点击卡片跳转，点“删除”可移除样本）": "Sample Preview & Jump (click card to jump, click Delete to remove sample)",
+      "说明：用于快速浏览历史样本，按状态/来源过滤并直接跳转回对应样本。": "Info: Quickly browse history samples, filter by status/source, and jump back directly.",
+      "边框颜色：绿色=已标注，橙色=已跳过，蓝色=未处理。": "Border colors: green=labeled, orange=skipped, blue=unreviewed.",
+      "设置面板（YAML 可视化）": "Settings Panel (YAML Visual)",
+      "快速上手（推荐只改这几项）": "Quick Start (recommended fields)",
+      "1. 抽样比例: 上方 `danbooru/e621/local` 三个权重。": "1. Sampling weights: danbooru/e621/local.",
+      "2. 标签过滤: Danbooru/e621 的 `tags`。": "2. Tag filter: Danbooru/e621 `tags`.",
+      "3. 本地路径: Local 的 `paths`（每行一个目录）。": "3. Local paths: one directory per line.",
+      "4. 评分标准: 下方“评分标准（可自定义）”。": "4. Rating guide: below rating settings.",
+      "5. 保存后可直接生效（host/port 除外）。": "5. Save to apply directly (except host/port).",
+      "服务设置（server）": "Server Settings (server)",
+      "控制 WebUI 服务监听地址。修改后需重启服务生效。": "Control WebUI bind address. Restart required after changes.",
+      "监听地址（host）": "Host",
+      "端口（port）": "Port",
+      "界面语言（ui.language）": "UI Language (ui.language)",
+      "抽样设置（sampling）": "Sampling Settings (sampling)",
+      "控制每次取图时的重试、超时和最小分辨率过滤。": "Control retries, timeout, and minimum resolution filter per fetch.",
+      "最大重试次数（max_attempts）": "Max Attempts (max_attempts)",
+      "请求超时秒数（request_timeout_sec）": "Request Timeout Sec (request_timeout_sec)",
+      "最小边长像素（min_side）": "Min Side Pixels (min_side)",
+      "请求重试次数（request_retries）": "Request Retries (request_retries)",
+      "抽样比例 danbooru（sources.weights.danbooru）": "Weight danbooru",
+      "抽样比例 e621（sources.weights.e621）": "Weight e621",
+      "抽样比例 local（sources.weights.local）": "Weight local",
+      "比例用于“下一张”抽样；点击“保存设置到 YAML”后会持久化到配置文件。": "Weights are used for Next sampling and persisted by Save Settings.",
+      "Danbooru 图源": "Danbooru Source",
+      "使用 Danbooru API 抽样。推荐配置账号/API Key 以提升稳定性。": "Sample via Danbooru API. Account/API key recommended for stability.",
+      "e621 图源": "e621 Source",
+      "e621 建议必须填写可识别 User-Agent，并控制请求速率。": "For e621, use a valid User-Agent and control request rate.",
+      "本地图源（local）": "Local Source (local)",
+      "从本地目录/文件随机抽样。路径可多行填写。": "Randomly sample local dirs/files. Multiple lines supported.",
+      "启用该来源（enabled）": "Enable Source (enabled)",
+      "递归扫描子目录（recursive）": "Recursive Scan (recursive)",
+      "路径列表（paths，每行一个）": "Path List (one per line)",
+      "扩展名（extensions，逗号分隔）": "Extensions (comma separated)",
+      "当你修改本地路径、扩展名或新增文件后，点击此按钮刷新可抽样列表。": "Reindex after changing local paths/extensions or adding files.",
+      "存储设置（storage）": "Storage Settings (storage)",
+      "下载或读取后的图像统一转存为 WebP，并写入本地数据库。": "Downloaded/read images are converted to WebP and stored in local DB.",
+      "数据根目录（root_dir）": "Root Dir (root_dir)",
+      "图片目录（images_dir）": "Images Dir (images_dir)",
+      "数据库路径（db_path）": "DB Path (db_path)",
+      "WebP 质量（webp_quality, 1-100）": "WebP Quality (1-100)",
+      "评分标准（可自定义）": "Rating Guide (customizable)",
+      "每个维度都可设置“描述 + 1~5 分示例”。示例格式必须为每行 `分值:说明`，例如 `4:构图成熟，视线引导自然`。": "Each dimension supports description + 1~5 examples. Format each line as `score:text`.",
+      "美学描述": "Aesthetic Description",
+      "构图描述": "Composition Description",
+      "色彩描述": "Color Description",
+      "色情描述": "Sexual Description",
+      "美学示例（每行: `分值:说明`）": "Aesthetic Examples (`score:text` per line)",
+      "构图示例（每行: `分值:说明`）": "Composition Examples (`score:text` per line)",
+      "色彩示例（每行: `分值:说明`）": "Color Examples (`score:text` per line)",
+      "色情示例（每行: `分值:说明`）": "Sexual Examples (`score:text` per line)",
+      "快捷键设置（仅当前浏览器）": "Hotkey Settings (browser only)",
+      "可自定义“按钮操作”的快捷键。避免使用 1~5 与 Ctrl+1~4（它们用于多维切换与打分）。": "Customize action hotkeys. Avoid 1~5 and Ctrl+1~4 (reserved for multi-dim switch/scoring).",
+      "图站 API 使用说明（重点）": "Image Site API Notes (important)",
+      "1. Danbooru:": "1. Danbooru:",
+      "- 推荐设置 `DANBOORU_USERNAME`、`DANBOORU_API_KEY`。": "- Recommended: `DANBOORU_USERNAME` and `DANBOORU_API_KEY`.",
+      "- 建议填写 `user_agent`，避免 403。": "- Set `user_agent` to avoid 403.",
+      "- `tags` 可填如: `1girl solo rating:s score:>20`。": "- Example tags: `1girl solo rating:s score:>20`.",
+      "2. e621:": "2. e621:",
+      "- 必须填写可识别 `user_agent`（建议含用途+联系方式）。": "- Use an identifiable `user_agent` (purpose + contact).",
+      "- 推荐设置 `E621_LOGIN`、`E621_API_KEY`。": "- Recommended: `E621_LOGIN` and `E621_API_KEY`.",
+      "- 建议降低请求频率，避免风控。": "- Lower request rate to avoid rate limits.",
+      "3. 本地源:": "3. Local source:",
+      "- `paths` 每行一个目录/文件，支持多行。": "- `paths`: one file/dir per line.",
+      "- 修改后请点“重建本地索引”。": "- Click Reindex Local after modification.",
+      "4. 生效规则:": "4. Apply rules:",
+      "- `host/port` 修改后需重启服务。": "- Restart service after `host/port` changes.",
+      "- 其余设置保存后会立即生效。": "- Other settings apply immediately after save.",
+      "cmd 示例:": "cmd examples:",
+      "快捷键: 多维模式 Ctrl+1~5 切维度、1~5 打分；单维模式 1~5 打分。Shift+Enter 保存并下一张（预览顺序）, Ctrl+Enter 仅保存, Backspace 上一张, X 跳过, Space 下一张。": "Hotkeys: Multi-dim uses Ctrl+1~5 to switch dimensions and 1~5 to score; single-dim uses 1~5 to score. Shift+Enter save+next (preview order), Ctrl+Enter save only, Backspace prev, X skip, Space next.",
+      "提示: 配置保存失败时请检查端口范围、路径权限、以及 e621 的 user_agent 是否为空。": "Tip: If save fails, check port range, path permissions, and e621 user_agent.",
+      "当前配置文件:": "Current config file:",
+      "评分示例": "Scoring Examples",
+      "配色、对比、色调统一性。": "Color palette, contrast, and tonal consistency.",
+      "重建本地索引": "Reindex Local",
+      "重载设置": "Reload Settings",
+      "页": "Page",
+      "整体视觉质量与吸引力。": "Overall visual quality and appeal.",
+      "主体安排、视觉引导与画面平衡。": "Subject arrangement, visual guidance, and balance.",
+      "色情程度强弱，不等同于质量好坏。": "Sexual explicitness level, not quality.",
+      "1 分: ": "1 pt: ",
+      "2 分: ": "2 pt: ",
+      "3 分: ": "3 pt: ",
+      "4 分: ": "4 pt: ",
+      "5 分: ": "5 pt: ",
+      "明显粗糙，细节缺失或画面脏乱。": "Obviously rough; lacks detail or looks messy.",
+      "可看但质量一般，观感偏平。": "Viewable but average quality, somewhat flat.",
+      "中等水平，主体清晰，缺少亮点。": "Medium level; subject is clear but lacks highlights.",
+      "质量较高，细节和氛围都不错。": "High quality with good detail and atmosphere.",
+      "非常优秀，细节、氛围与完成度都很强。": "Excellent overall: detail, mood, and finish are strong.",
+      "构图混乱，主体不明确。": "Chaotic composition; subject is unclear.",
+      "主体可辨识，但布局生硬。": "Subject is recognizable, but layout feels stiff.",
+      "构图基本合理，信息表达清楚。": "Composition is generally reasonable; message is clear.",
+      "构图成熟，视线引导自然。": "Mature composition with natural eye guidance.",
+      "构图非常出色，叙事与视觉层次强。": "Outstanding composition with strong narrative and visual layers.",
+      "黑白,线稿": "Black-and-white, line art",
+      "配色一般，有轻微不协调。": "Average color matching with slight inconsistency.",
+      "颜色基本协调，无明显问题。": "Colors are mostly harmonious; no major issues.",
+      "配色舒服，氛围表达较好,光影优秀。": "Comfortable palette, good mood expression, excellent lighting.",
+      "配色光影高级且有记忆点，氛围极佳。": "Advanced color-lighting with memorability; excellent atmosphere.",
+      "几乎无性暗示，安全向。": "Almost no sexual cues; safe-oriented.",
+      "轻微性暗示，仍偏安全。": "Mild sexual cues, still mostly safe.",
+      "中度性暗示，边缘内容。": "Moderate sexual cues; borderline content.",
+      "明显成人向，露骨较多。": "Clearly adult-oriented with noticeable explicitness.",
+      "高度露骨，强成人内容。": "Highly explicit, strongly adult content.",
+      "构图": "Composition",
+      "美学": "Aesthetic",
+      "色彩": "Color",
+      "色情": "Sexual",
+      "manga（漫画/分镜）": "manga (comic/storyboard)",
+      "ai_gen（AI生成）": "ai_gen (AI generated)",
+      "photo_real（写实照片）": "photo_real (photoreal)",
+      "garbage（损坏/水印/重复/错标/截图）": "garbage (broken/watermark/duplicate/mislabeled/screenshot)",
+      "other（其他）": "other",
+      "anime_illust（二次元插画）": "anime_illust (anime illustration)",
+      "API 地址（base_url）": "API Base URL (base_url)",
+      "单次请求条数（limit）": "Items Per Request (limit)",
+      "标签过滤（tags）": "Tag Filter (tags)",
+      "请求标识（user_agent）": "User-Agent (user_agent)",
+      "用户名（环境变量名或直接值，username_env）": "Username (env var name or direct value, username_env)",
+      "登录名（环境变量名或直接值，login_env）": "Login (env var name or direct value, login_env)",
+      "密钥（环境变量名或直接值，api_key_env）": "API Key (env var name or direct value, api_key_env)",
+    };
+    const EN_ZH = Object.fromEntries(Object.entries(ZH_EN).map(([zh, en]) => [en, zh]));
+    const ZH_KEYS = Object.keys(ZH_EN).sort((a, b) => b.length - a.length);
+    const EN_KEYS = Object.keys(EN_ZH).sort((a, b) => b.length - a.length);
+
+    function replaceByMap(text, map, keys) {
+      let out = String(text ?? "");
+      for (const k of keys) out = out.split(k).join(map[k]);
+      return out;
+    }
+
+    function localizeText(text) {
+      if (currentLang === "en") return replaceByMap(text, ZH_EN, ZH_KEYS);
+      return replaceByMap(text, EN_ZH, EN_KEYS);
+    }
+
+    function localizeTree(root = document.body) {
+      const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+      let node = null;
+      while ((node = walker.nextNode())) {
+        if (!node.nodeValue || !node.nodeValue.trim()) continue;
+        node.nodeValue = localizeText(node.nodeValue);
+      }
+      document.title = localizeText(document.title);
+    }
+
+    function applyLanguage(lang, persist = true) {
+      currentLang = lang === "en" ? "en" : "zh-CN";
+      document.documentElement.lang = currentLang === "en" ? "en" : "zh-CN";
+      const btn = $("lang-toggle");
+      if (btn) btn.textContent = currentLang === "en" ? "ZH" : "EN";
+      if (persist) localStorage.setItem(LANG_KEY, currentLang);
+      const now = document.body.getAttribute("data-theme") === "dark" ? "dark" : "light";
+      applyTheme(now);
+      localizeTree();
+    }
+
+    function initLanguage() {
+      const stored = localStorage.getItem(LANG_KEY);
+      applyLanguage(stored === "en" ? "en" : "zh-CN", false);
+    }
+
+    function toggleLanguage() {
+      applyLanguage(currentLang === "en" ? "zh-CN" : "en");
+      renderScoring();
+      if (currentSample) showSample(currentSample, { pushHistory: false });
+      localizeTree();
+    }
+
+    function applyTheme(theme) {
+      const next = theme === "dark" ? "dark" : "light";
+      document.body.setAttribute("data-theme", next);
+      const btn = $("theme-toggle");
+      if (btn) {
+        if (currentLang === "en") btn.textContent = next === "dark" ? "Light Mode" : "Dark Mode";
+        else btn.textContent = next === "dark" ? "日间模式" : "夜间模式";
+      }
+    }
+
+    function initTheme() {
+      const stored = localStorage.getItem(THEME_KEY);
+      if (stored === "dark" || stored === "light") {
+        applyTheme(stored);
+        return;
+      }
+      const prefersDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+      applyTheme(prefersDark ? "dark" : "light");
+    }
+
+    function toggleTheme() {
+      const now = document.body.getAttribute("data-theme") === "dark" ? "dark" : "light";
+      const next = now === "dark" ? "light" : "dark";
+      applyTheme(next);
+      localStorage.setItem(THEME_KEY, next);
+    }
+
+    function setErr(msg) {
+      $("err").textContent = localizeText(msg || "");
+    }
+
+    function isLightboxOpen() {
+      const box = $("img-lightbox");
+      return !!box && box.classList.contains("open");
+    }
+
+    function applyLightboxZoom() {
+      const img = $("img-lightbox-img");
+      const txt = $("img-lightbox-zoom-text");
+      if (img) img.style.setProperty("--lb-zoom", String(lightboxZoom));
+      if (txt) txt.textContent = `${Math.round(lightboxZoom * 100)}%`;
+    }
+
+    function setLightboxZoom(v) {
+      const n = Number(v);
+      if (!Number.isFinite(n)) return;
+      lightboxZoom = Math.max(LIGHTBOX_ZOOM_MIN, Math.min(LIGHTBOX_ZOOM_MAX, n));
+      applyLightboxZoom();
+    }
+
+    function nudgeLightboxZoom(step) {
+      setLightboxZoom(lightboxZoom + step);
+    }
+
+    function resetLightboxZoom() {
+      setLightboxZoom(LIGHTBOX_ZOOM_DEFAULT);
+    }
+
+    function fitLightboxZoom() {
+      setLightboxZoom(1.0);
+    }
+
+    function openImageLightbox() {
+      const img = $("img");
+      const src = img?.getAttribute("src");
+      if (!src) return;
+      $("img-lightbox-img").src = src;
+      resetLightboxZoom();
+      const box = $("img-lightbox");
+      box.classList.add("open");
+      box.setAttribute("aria-hidden", "false");
+    }
+
+    function closeImageLightbox() {
+      const box = $("img-lightbox");
+      box.classList.remove("open");
+      box.setAttribute("aria-hidden", "true");
+      $("img-lightbox-img").removeAttribute("src");
+      resetLightboxZoom();
+    }
+
+    function getWeights() {
+      return {
+        danbooru: Number($("w-danbooru").value || 0),
+        e621: Number($("w-e621").value || 0),
+        local: Number($("w-local").value || 0),
+      };
+    }
+
+    function weightsKey(weights) {
+      const w = weights || {};
+      return [
+        Number(w.danbooru || 0).toFixed(6),
+        Number(w.e621 || 0).toFixed(6),
+        Number(w.local || 0).toFixed(6),
+      ].join("|");
+    }
+
+    function clearPrefetchState() {
+      prefetchToken += 1;
+      prefetchedSamples = [];
+      prefetchPromise = null;
+      prefetchWeightsKey = "";
+    }
+
+    function clearPrefetchStateAndWarm() {
+      clearPrefetchState();
+      ensurePrefetchMaintainerTick();
+    }
+
+    function collectPrefetchMaintainAvoidIds() {
+      const avoid = makeAvoidSampleIdSet(previewOrderIds);
+      const recentHistory = sampleHistory.slice(-PREFETCH_MAINTAIN_HISTORY_LIMIT);
+      for (const sidRaw of recentHistory) {
+        const sid = Number(sidRaw || 0);
+        if (sid > 0) avoid.add(sid);
+      }
+      return Array.from(avoid);
+    }
+
+    function ensurePrefetchMaintainerTick() {
+      if (prefetchMaintainTicking) return;
+      if (document.visibilityState === "hidden") return;
+      prefetchMaintainTicking = true;
+      setTimeout(async () => {
+        try {
+          const avoidIds = collectPrefetchMaintainAvoidIds();
+          await startNextPrefetch(false, avoidIds);
+        } catch (_) {
+          // keep silent; maintainer will retry on next tick
+        } finally {
+          prefetchMaintainTicking = false;
+        }
+      }, 0);
+    }
+
+    function startPrefetchMaintainer() {
+      if (prefetchMaintainTimer != null) return;
+      prefetchMaintainTimer = setInterval(() => {
+        ensurePrefetchMaintainerTick();
+      }, PREFETCH_MAINTAIN_INTERVAL_MS);
+      ensurePrefetchMaintainerTick();
+    }
+
+    function buildImageUrl(rawUrl, thumb = false) {
+      const base = String(rawUrl || "").trim();
+      if (!base) return "";
+      if (!thumb) return base;
+      return base.includes("?") ? `${base}&thumb=1&thumb_size=480` : `${base}?thumb=1&thumb_size=480`;
+    }
+
+    function trimPreloadedImageCache() {
+      while (preloadedImageOrder.length > MAX_PRELOADED_IMAGES) {
+        const oldest = preloadedImageOrder.shift();
+        if (oldest) preloadedImagePromises.delete(oldest);
+      }
+    }
+
+    function preloadImage(src) {
+      if (!src) return Promise.resolve();
+      if (preloadedImagePromises.has(src)) {
+        return preloadedImagePromises.get(src);
+      }
+      const p = new Promise((resolve) => {
+        const img = new Image();
+        img.decoding = "async";
+        img.loading = "eager";
+        img.src = src;
+        img.onload = () => {
+          if (typeof img.decode === "function") {
+            img.decode().catch(() => {}).finally(resolve);
+            return;
+          }
+          resolve();
+        };
+        img.onerror = () => resolve();
+      });
+      preloadedImagePromises.set(src, p);
+      preloadedImageOrder.push(src);
+      trimPreloadedImageCache();
+      return p;
+    }
+
+    async function waitImageReady(src, timeoutMs = 2600) {
+      if (!src) return;
+      try {
+        await Promise.race([
+          preloadImage(src),
+          new Promise((resolve) => setTimeout(resolve, timeoutMs)),
+        ]);
+      } catch (_) {
+        // ignore image preload failures and continue switching sample
+      }
+    }
+
+    function warmupSampleImage(sample) {
+      const fullSrc = buildImageUrl(sample?.image_url, false);
+      const thumbSrc = buildImageUrl(sample?.image_url, true);
+      if (thumbSrc) preloadImage(thumbSrc).catch(() => {});
+      if (fullSrc) preloadImage(fullSrc).catch(() => {});
+    }
+
+    function pushPrefetchedSample(sample) {
+      const sid = Number(sample?.sample_id);
+      if (!Number.isFinite(sid) || sid <= 0) return false;
+      const currentSid = Number(currentSample?.sample_id || 0);
+      if (sid === currentSid) return false;
+      if (prefetchedSamples.some((x) => Number(x?.sample_id) === sid)) return false;
+      prefetchedSamples.push(sample);
+      return true;
+    }
+
+    function makeAvoidSampleIdSet(list) {
+      const out = new Set();
+      const src = Array.isArray(list) ? list : [];
+      for (const x of src) {
+        const n = Number(x);
+        if (Number.isFinite(n) && n > 0) out.add(n);
+      }
+      const currentSid = Number(currentSample?.sample_id || 0);
+      if (Number.isFinite(currentSid) && currentSid > 0) out.add(currentSid);
+      return out;
+    }
+
+    function buildPrefetchAvoidSampleIds(extraAvoidSampleIds = null) {
+      const out = makeAvoidSampleIdSet(extraAvoidSampleIds);
+      for (const s of prefetchedSamples) {
+        const sid = Number(s?.sample_id || 0);
+        if (sid > 0) out.add(sid);
+      }
+      return Array.from(out);
+    }
+
+    function shiftPrefetchedSample(avoidSet) {
+      while (prefetchedSamples.length > 0) {
+        const s = prefetchedSamples.shift();
+        const sid = Number(s?.sample_id || 0);
+        if (avoidSet && avoidSet.size > 0 && sid > 0 && avoidSet.has(sid)) {
+          continue;
+        }
+        return s;
+      }
+      return null;
+    }
+
+    async function startNextPrefetch(force = false, extraAvoidSampleIds = null) {
+      const weights = getWeights();
+      const key = weightsKey(weights);
+
+      if (force || prefetchWeightsKey !== key) {
+        clearPrefetchState();
+        prefetchWeightsKey = key;
+      }
+
+      if (prefetchedSamples.length >= PREFETCH_QUEUE_SIZE) {
+        return prefetchedSamples[0] || null;
+      }
+      if (prefetchPromise && prefetchWeightsKey === key) {
+        return prefetchPromise;
+      }
+
+      const token = ++prefetchToken;
+      prefetchWeightsKey = key;
+      prefetchPromise = (async () => {
+        let fetchedOk = false;
+        let queuedAdded = false;
+        try {
+          const avoidSampleIds = buildPrefetchAvoidSampleIds(extraAvoidSampleIds);
+          const s = await api("/api/next", {
+            weights,
+            avoid_sample_ids: avoidSampleIds,
+          });
+          fetchedOk = true;
+          if (prefetchToken !== token || prefetchWeightsKey !== key) {
+            return prefetchedSamples[0] || null;
+          }
+          queuedAdded = pushPrefetchedSample(s);
+          if (queuedAdded) {
+            warmupSampleImage(s);
+          }
+          return prefetchedSamples[0] || (queuedAdded ? s : null);
+        } finally {
+          const canContinue =
+            fetchedOk &&
+            queuedAdded &&
+            prefetchToken === token &&
+            prefetchWeightsKey === key &&
+            prefetchedSamples.length < PREFETCH_QUEUE_SIZE;
+          if (prefetchToken === token) prefetchPromise = null;
+          if (canContinue) {
+            setTimeout(() => {
+              startNextPrefetch(false, extraAvoidSampleIds).catch(() => {});
+            }, 0);
+          } else if (
+            fetchedOk &&
+            !queuedAdded &&
+            prefetchToken === token &&
+            prefetchWeightsKey === key &&
+            prefetchedSamples.length < PREFETCH_QUEUE_SIZE
+          ) {
+            // Backend returned a duplicate (often current sample). Back off to avoid tight-loop polling.
+            setTimeout(() => {
+              startNextPrefetch(false, extraAvoidSampleIds).catch(() => {});
+            }, PREFETCH_RETRY_DELAY_MS);
+          }
+        }
+      })();
+      return prefetchPromise;
+    }
+
+    async function fetchNextSampleFast(avoidSampleIds = null, opts = {}) {
+      const weights = getWeights();
+      const key = weightsKey(weights);
+      const avoidSet = makeAvoidSampleIdSet(avoidSampleIds);
+      const usePrefetch = opts?.usePrefetch !== false;
+      const afterSampleId = Number(opts?.afterSampleId || 0);
+
+      if (prefetchWeightsKey !== key) {
+        clearPrefetchState();
+        prefetchWeightsKey = key;
+      }
+
+      if (usePrefetch) {
+        const fromQueue = shiftPrefetchedSample(avoidSet);
+        if (fromQueue) {
+          const sid = Number(fromQueue?.sample_id || 0);
+          if (sid > 0) avoidSet.add(sid);
+          startNextPrefetch(false, Array.from(avoidSet)).catch(() => {});
+          return fromQueue;
+        }
+
+        if (prefetchPromise && prefetchWeightsKey === key) {
+          try {
+            await Promise.race([
+              prefetchPromise,
+              new Promise((resolve) => setTimeout(resolve, PREFETCH_WAIT_ON_PROMISE_MS)),
+            ]);
+            const fromQueueAfterWait = shiftPrefetchedSample(avoidSet);
+            if (fromQueueAfterWait) {
+              const sid = Number(fromQueueAfterWait?.sample_id || 0);
+              if (sid > 0) avoidSet.add(sid);
+              startNextPrefetch(false, Array.from(avoidSet)).catch(() => {});
+              return fromQueueAfterWait;
+            }
+          } catch (e) {
+            // ignore prefetch errors and fallback to direct request
+          }
+        }
+      }
+      let last = null;
+      const maxTry = 3;
+      for (let i = 0; i < maxTry; i++) {
+        const req = {
+          weights,
+          avoid_sample_ids: Array.from(avoidSet),
+        };
+        if (afterSampleId > 0) req.after_sample_id = afterSampleId;
+        const s = await api("/api/next", req);
+        last = s;
+        const sid = Number(s?.sample_id || 0);
+        if (!(sid > 0 && avoidSet.has(sid))) {
+          if (sid > 0) avoidSet.add(sid);
+          warmupSampleImage(s);
+          startNextPrefetch(false, Array.from(avoidSet)).catch(() => {});
+          return s;
+        }
+        if (sid > 0) avoidSet.add(sid);
+      }
+      if (last) {
+        const sid = Number(last?.sample_id || 0);
+        if (sid > 0) avoidSet.add(sid);
+        warmupSampleImage(last);
+        startNextPrefetch(false, Array.from(avoidSet)).catch(() => {});
+        return last;
+      }
+      throw new Error("无法获取下一样本");
+    }
+
+    function splitLines(text) {
+      return String(text || "").split(/\r?\n/).map((x) => x.trim()).filter(Boolean);
+    }
+
+    function splitComma(text) {
+      return String(text || "").split(",").map((x) => x.trim()).filter(Boolean);
+    }
+
+    function normalizeLabelMeta(raw) {
+      const inDomain = Number(raw?.in_domain);
+      const legacyExclude = Number(raw?.exclude_from_train);
+      const excludeScore = Number(
+        raw?.exclude_from_score_train !== undefined ? raw?.exclude_from_score_train : legacyExclude
+      );
+      const excludeCls = Number(
+        raw?.exclude_from_cls_train !== undefined ? raw?.exclude_from_cls_train : legacyExclude
+      );
+      const contentType = String(raw?.content_type || DEFAULT_LABEL_META.content_type).trim();
+      const normalizedType =
+        contentType === "ui_screenshot" ? "garbage" : (contentType || DEFAULT_LABEL_META.content_type);
+      return {
+        in_domain: inDomain === 0 ? 0 : 1,
+        content_type: normalizedType,
+        exclude_from_score_train: excludeScore === 1 ? 1 : 0,
+        exclude_from_cls_train: excludeCls === 1 ? 1 : 0,
+        exclude_from_train: excludeScore === 1 || excludeCls === 1 ? 1 : 0,
+      };
+    }
+
+    function syncDomainMetaVisibility() {
+      const inDomain = Number($("meta-in-domain").value || 1) === 1;
+      const typeField = $("meta-content-type-field");
+      if (typeField) typeField.classList.toggle("hidden", inDomain);
+    }
+
+    function readLabelMetaFromInputs() {
+      const inDomain = Number($("meta-in-domain").value || 1);
+      const contentType = inDomain === 1 ? "anime_illust" : $("meta-content-type").value;
+      return normalizeLabelMeta({
+        in_domain: inDomain,
+        content_type: contentType,
+        exclude_from_score_train: $("meta-exclude-score").checked ? 1 : 0,
+        exclude_from_cls_train: $("meta-exclude-cls").checked ? 1 : 0,
+      });
+    }
+
+    function applyLabelMetaToInputs(raw) {
+      const m = normalizeLabelMeta(raw || DEFAULT_LABEL_META);
+      $("meta-in-domain").value = String(m.in_domain);
+      $("meta-content-type").value = m.content_type in CONTENT_TYPE_LABELS ? m.content_type : "other";
+      $("meta-exclude-score").checked = m.exclude_from_score_train === 1;
+      $("meta-exclude-cls").checked = m.exclude_from_cls_train === 1;
+      syncDomainMetaVisibility();
+    }
+
+    function normalizeSessionScores(rawScores) {
+      const out = { aesthetic: null, composition: null, color: null, sexual: null };
+      if (!rawScores || typeof rawScores !== "object") return out;
+      for (const k of Object.keys(out)) {
+        out[k] = normalizeScoreOrNull(rawScores[k]);
+      }
+      return out;
+    }
+
+    function readSessionSnapshot() {
+      try {
+        const raw = localStorage.getItem(SESSION_STORAGE_KEY);
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        if (!parsed || typeof parsed !== "object") return null;
+        return parsed;
+      } catch (_) {
+        return null;
+      }
+    }
+
+    function clearSessionSnapshot() {
+      try {
+        localStorage.removeItem(SESSION_STORAGE_KEY);
+      } catch (_) {}
+    }
+
+    function persistSessionSnapshot() {
+      if (!currentSample || !Number(currentSample.sample_id)) return;
+      const snapshot = {
+        sample_id: Number(currentSample.sample_id),
+        active_dim: activeDim,
+        single_dim_mode: singleDimMode ? 1 : 0,
+        auto_next_on_score: !!autoNextOnScore,
+        scores: normalizeSessionScores(scores),
+        label_meta: readLabelMetaFromInputs(),
+        saved_at: new Date().toISOString(),
+      };
+      try {
+        localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(snapshot));
+      } catch (_) {}
+    }
+
+    async function restoreSessionSnapshot() {
+      const snap = readSessionSnapshot();
+      if (!snap) return false;
+      const sid = Number(snap.sample_id);
+      if (!Number.isFinite(sid) || sid <= 0) {
+        clearSessionSnapshot();
+        return false;
+      }
+      try {
+        await openSampleById(sid, false);
+      } catch (_) {
+        // Keep snapshot for retry on transient errors (network/api race during rapid refresh).
+        return false;
+      }
+
+      if (snap.single_dim_mode === 0 || snap.single_dim_mode === 1) {
+        singleDimMode = snap.single_dim_mode === 1;
+        $("single-dim-mode").value = singleDimMode ? "1" : "0";
+      }
+      if (typeof snap.active_dim === "string" && dims.some((d) => d.key === snap.active_dim)) {
+        activeDim = snap.active_dim;
+        $("single-dim-target").value = activeDim;
+      }
+      if (typeof snap.auto_next_on_score === "boolean") {
+        autoNextOnScore = snap.auto_next_on_score;
+        $("single-dim-auto-next").checked = autoNextOnScore;
+      }
+      if (snap.label_meta && typeof snap.label_meta === "object") {
+        applyLabelMetaToInputs(snap.label_meta);
+      }
+      if (snap.scores && typeof snap.scores === "object") {
+        scores = normalizeSessionScores(snap.scores);
+      }
+      renderScoring();
+      queuePreviewPanelAlign();
+      persistSessionSnapshot();
+      return true;
+    }
+
+    function quickMarkInDomain() {
+      $("meta-in-domain").value = "1";
+      $("meta-content-type").value = "anime_illust";
+      $("meta-exclude-score").checked = false;
+      $("meta-exclude-cls").checked = false;
+      syncDomainMetaVisibility();
+      persistSessionSnapshot();
+      setErr("已设置为：目标域 + 保留打分 + 保留分类。");
+    }
+
+    function quickMarkOutDomainKeep() {
+      $("meta-in-domain").value = "0";
+      $("meta-content-type").value = "garbage";
+      $("meta-exclude-score").checked = true;
+      $("meta-exclude-cls").checked = false;
+      syncDomainMetaVisibility();
+      persistSessionSnapshot();
+      setErr("已设置为：域外 + 排除打分 + 保留分类（推荐用于训练分类头识别特殊图）。");
+    }
+
+    function quickMarkExclude() {
+      $("meta-exclude-score").checked = true;
+      $("meta-exclude-cls").checked = true;
+      syncDomainMetaVisibility();
+      persistSessionSnapshot();
+      setErr("已设置为：排除打分 + 排除分类。");
+    }
+
+    function sampleStatusKey(sample) {
+      const st = sample?.annotation?.status;
+      if (st === "labeled" || st === "skipped") return st;
+      return "unreviewed";
+    }
+
+    function sampleStatusText(sample) {
+      const k = sampleStatusKey(sample);
+      if (k === "labeled") return currentLang === "en" ? "Labeled" : "已标注";
+      if (k === "skipped") return currentLang === "en" ? "Skipped" : "已跳过";
+      return currentLang === "en" ? "Unreviewed" : "未处理";
+    }
+
+    function formatAnnotationTime(sample) {
+      const ts = sample?.annotation?.updated_at;
+      if (!ts) return "-";
+      const d = new Date(ts);
+      if (Number.isNaN(d.getTime())) return String(ts);
+      const pad = (n) => String(n).padStart(2, "0");
+      return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    }
+
+    function formatSampleCreatedTime(sample) {
+      const ts = sample?.created_at;
+      if (!ts) return "-";
+      const d = new Date(ts);
+      if (Number.isNaN(d.getTime())) return String(ts);
+      const pad = (n) => String(n).padStart(2, "0");
+      return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    }
+
+    function syncPreviewPanelBottomWithImage() {
+      const panel = document.querySelector(".sample-card > .preview-panel");
+      const imgBox = document.querySelector(".sample-card > .viewer-row .img-box");
+      if (!panel || !imgBox) return;
+      if (window.matchMedia("(max-width: 1240px)").matches) {
+        panel.style.maxHeight = "";
+        return;
+      }
+      const panelRect = panel.getBoundingClientRect();
+      const imgRect = imgBox.getBoundingClientRect();
+      const target = Math.floor(imgRect.bottom - panelRect.top);
+      if (!Number.isFinite(target) || target <= 120) return;
+      panel.style.maxHeight = `${target}px`;
+    }
+
+    function queuePreviewPanelAlign() {
+      window.requestAnimationFrame(syncPreviewPanelBottomWithImage);
+    }
+
+    function updatePreviewPageInfo() {
+      const page = previewState.page;
+      const pages = previewState.pages;
+      const total = previewState.total;
+      $("preview-page-info").textContent = localizeText(`页 ${pages > 0 ? page : 0}/${pages}，样本 ${total}`);
+      if ($("preview-page-jump")) {
+        $("preview-page-jump").min = "1";
+        $("preview-page-jump").max = pages > 0 ? String(pages) : "";
+        $("preview-page-jump").value = pages > 0 ? String(page) : "";
+      }
+      if ($("btn-preview-first")) {
+        $("btn-preview-first").disabled = pages <= 0 || page <= 1;
+      }
+      $("btn-preview-prev").disabled = page <= 1;
+      $("btn-preview-next").disabled = pages <= 0 || page >= pages;
+      if ($("btn-preview-last")) {
+        $("btn-preview-last").disabled = pages <= 0 || page >= pages;
+      }
+      if ($("btn-preview-jump")) {
+        $("btn-preview-jump").disabled = pages <= 0;
+      }
+    }
+
+    function jumpPreviewPage() {
+      const input = $("preview-page-jump");
+      if (!input) return;
+      const raw = Number(input.value);
+      if (!Number.isFinite(raw) || raw < 1) {
+        setErr("请输入有效页码。");
+        return;
+      }
+      const target = previewState.pages > 0 ? Math.min(Math.trunc(raw), previewState.pages) : Math.trunc(raw);
+      loadPreviewPage(target);
+    }
+
+    function normalizeBaseKey(raw) {
+      const x = String(raw || "").trim();
+      if (!x) return "";
+      const l = x.toLowerCase();
+      if (l === "space" || x === " ") return "Space";
+      if (l === "enter" || l === "return") return "Enter";
+      if (l === "backspace" || l === "bksp") return "Backspace";
+      if (l === "esc" || l === "escape") return "Escape";
+      if (l === "tab") return "Tab";
+      if (l === "delete" || l === "del") return "Delete";
+      if (l.startsWith("arrow")) return "Arrow" + l.slice(5, 6).toUpperCase() + l.slice(6);
+      if (x.length === 1) return x.toUpperCase();
+      return x;
+    }
+
+    function normalizeShortcutText(text) {
+      const raw = String(text || "").trim();
+      if (!raw) return "";
+      const parts = raw.split("+").map((x) => x.trim()).filter(Boolean);
+      let ctrl = false, alt = false, shift = false;
+      let key = "";
+      for (const p of parts) {
+        const l = p.toLowerCase();
+        if (l === "ctrl" || l === "control") { ctrl = true; continue; }
+        if (l === "alt") { alt = true; continue; }
+        if (l === "shift") { shift = true; continue; }
+        key = normalizeBaseKey(p);
+      }
+      if (!key) return "";
+      const out = [];
+      if (ctrl) out.push("Ctrl");
+      if (alt) out.push("Alt");
+      if (shift) out.push("Shift");
+      out.push(key);
+      return out.join("+");
+    }
+
+    function eventToShortcut(e) {
+      let key = e.key;
+      if (!key) return "";
+      if (key === " ") key = "Space";
+      if (["Control", "Shift", "Alt", "Meta"].includes(key)) return "";
+      key = normalizeBaseKey(key);
+      const out = [];
+      if (e.ctrlKey) out.push("Ctrl");
+      if (e.altKey) out.push("Alt");
+      if (e.shiftKey) out.push("Shift");
+      out.push(key);
+      return out.join("+");
+    }
+
+    function sameShortcut(lhs, rhs) {
+      const a = normalizeShortcutText(lhs).toLowerCase();
+      const b = normalizeShortcutText(rhs).toLowerCase();
+      return !!a && !!b && a === b;
+    }
+
+    function fillHotkeyInputs() {
+      $("set-hotkey-prev").value = hotkeys.prev;
+      $("set-hotkey-save-only").value = hotkeys.save_only;
+      $("set-hotkey-submit-preview-next").value = hotkeys.submit_preview_next;
+      $("set-hotkey-skip").value = hotkeys.skip;
+      $("set-hotkey-next").value = hotkeys.next;
+    }
+
+    function refreshHotkeyLabels() {
+      $("btn-prev").textContent = `上一张（${hotkeys.prev}）`;
+      $("btn-save-only").textContent = `保存修改（${hotkeys.save_only}）`;
+      $("btn-submit-preview-next").textContent = `保存并下一张（预览顺序）（${hotkeys.submit_preview_next}）`;
+      $("btn-skip").textContent = `跳过（${hotkeys.skip}）`;
+      $("btn-next").textContent = `下一张（${hotkeys.next}）`;
+      $("shortcut-hint").textContent =
+        `快捷键: 多维模式 Ctrl+1~4 切维度、1~5 打分；单维模式 1~5 打分。${hotkeys.submit_preview_next} 保存并下一张（预览顺序）, ${hotkeys.save_only} 仅保存, ${hotkeys.prev} 上一张, ${hotkeys.skip} 跳过, ${hotkeys.next} 下一张（按加载顺序）。`;
+    }
+
+    function loadHotkeys() {
+      try {
+        const raw = localStorage.getItem(HOTKEY_STORAGE_KEY);
+        if (!raw) {
+          hotkeys = { ...DEFAULT_HOTKEYS };
+        } else {
+          const parsed = JSON.parse(raw);
+          const legacySubmitNext = normalizeShortcutText(parsed.submit_next || "");
+          const submitPreviewNextRaw =
+            normalizeShortcutText(parsed.submit_preview_next || "") ||
+            legacySubmitNext ||
+            DEFAULT_HOTKEYS.submit_preview_next;
+          hotkeys = {
+            prev: normalizeShortcutText(parsed.prev || DEFAULT_HOTKEYS.prev) || DEFAULT_HOTKEYS.prev,
+            save_only: normalizeShortcutText(parsed.save_only || DEFAULT_HOTKEYS.save_only) || DEFAULT_HOTKEYS.save_only,
+            submit_preview_next: submitPreviewNextRaw,
+            skip: normalizeShortcutText(parsed.skip || DEFAULT_HOTKEYS.skip) || DEFAULT_HOTKEYS.skip,
+            next: normalizeShortcutText(parsed.next || DEFAULT_HOTKEYS.next) || DEFAULT_HOTKEYS.next,
+          };
+        }
+      } catch (_) {
+        hotkeys = { ...DEFAULT_HOTKEYS };
+      }
+      fillHotkeyInputs();
+      refreshHotkeyLabels();
+    }
+
+    function saveHotkeys() {
+      const candidate = {
+        prev: normalizeShortcutText($("set-hotkey-prev").value) || DEFAULT_HOTKEYS.prev,
+        save_only: normalizeShortcutText($("set-hotkey-save-only").value) || DEFAULT_HOTKEYS.save_only,
+        submit_preview_next: normalizeShortcutText($("set-hotkey-submit-preview-next").value) || DEFAULT_HOTKEYS.submit_preview_next,
+        skip: normalizeShortcutText($("set-hotkey-skip").value) || DEFAULT_HOTKEYS.skip,
+        next: normalizeShortcutText($("set-hotkey-next").value) || DEFAULT_HOTKEYS.next,
+      };
+
+      const reserved = new Set(["1", "2", "3", "4", "5", "Ctrl+1", "Ctrl+2", "Ctrl+3", "Ctrl+4"]);
+      for (const v of Object.values(candidate)) {
+        if (reserved.has(v)) {
+          setErr(`快捷键 ${v} 已用于多维切换/打分，请换一个。`);
+          return;
+        }
+      }
+
+      const seen = {};
+      for (const [k, v] of Object.entries(candidate)) {
+        if (seen[v]) {
+          setErr(`快捷键冲突: ${seen[v]} 和 ${k} 都使用了 ${v}`);
+          return;
+        }
+        seen[v] = k;
+      }
+
+      hotkeys = candidate;
+      localStorage.setItem(HOTKEY_STORAGE_KEY, JSON.stringify(hotkeys));
+      loadHotkeys();
+      setErr("快捷键已保存。");
+    }
+
+    function resetHotkeys() {
+      hotkeys = { ...DEFAULT_HOTKEYS };
+      localStorage.removeItem(HOTKEY_STORAGE_KEY);
+      fillHotkeyInputs();
+      refreshHotkeyLabels();
+      setErr("快捷键已恢复默认。");
+    }
+
+    function examplesMapToText(examples) {
+      const out = [];
+      for (let i = 1; i <= 5; i++) {
+        const k = String(i);
+        out.push(`${k}:${examples?.[k] ?? ""}`);
+      }
+      return out.join("\n");
+    }
+
+    function textToExamplesMap(text) {
+      const out = { "1": "", "2": "", "3": "", "4": "", "5": "" };
+      for (const raw of splitLines(text)) {
+        const idx = raw.indexOf(":");
+        if (idx <= 0) continue;
+        const k = raw.slice(0, idx).trim();
+        const v = raw.slice(idx + 1).trim();
+        if (["1", "2", "3", "4", "5"].includes(k)) out[k] = v;
+      }
+      return out;
+    }
+
+    function normalizeGuide(cfg) {
+      const g = JSON.parse(JSON.stringify(DEFAULT_GUIDE));
+      const src = cfg?.rating_guide?.dimensions || {};
+      for (const dim of ["aesthetic", "composition", "color", "sexual"]) {
+        g.dimensions[dim].title = src?.[dim]?.title || g.dimensions[dim].title;
+        g.dimensions[dim].description = src?.[dim]?.description || g.dimensions[dim].description;
+        for (let i = 1; i <= 5; i++) {
+          const k = String(i);
+          g.dimensions[dim].examples[k] = src?.[dim]?.examples?.[k] ?? g.dimensions[dim].examples[k];
+        }
+      }
+      return g;
+    }
+
+    function renderGuidePanel() {
+      const dim = guideCache.dimensions[activeDim] || DEFAULT_GUIDE.dimensions[activeDim];
+      const title = dim.title || activeDim;
+      $("guide-title").textContent = localizeText(`${title} 评分示例`);
+      $("guide-desc").textContent = localizeText(dim.description || "");
+      const root = $("guide-lines");
+      root.innerHTML = "";
+      for (let i = 1; i <= 5; i++) {
+        const line = document.createElement("div");
+        if (scores[activeDim] === i) line.className = "hit";
+        line.textContent = localizeText(`${i} 分: ${dim.examples?.[String(i)] || ""}`);
+        root.appendChild(line);
+      }
+    }
+
+    async function api(path, body, method) {
+      const httpMethod = method || (body ? "POST" : "GET");
+      const resp = await fetch(path, {
+        method: httpMethod,
+        headers: body ? { "Content-Type": "application/json" } : undefined,
+        body: body ? JSON.stringify(body) : undefined,
+      });
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok) throw new Error(data.detail || `${resp.status} ${resp.statusText}`);
+      return data;
+    }
+
+    function purgeSampleFromClientCache(sampleId) {
+      const sid = Number(sampleId);
+      if (!sid) return;
+      delete sampleCache[sid];
+      sampleHistory = sampleHistory.filter((x) => Number(x) !== sid);
+      previewOrderIds = previewOrderIds.filter((x) => Number(x) !== sid);
+      if (previewOrderIds.length === 0) {
+        previewOrderIndex = -1;
+      } else if (previewOrderIndex >= previewOrderIds.length) {
+        previewOrderIndex = previewOrderIds.length - 1;
+      }
+      if (sampleHistory.length === 0) {
+        historyIndex = -1;
+        return;
+      }
+      historyIndex = Math.min(historyIndex, sampleHistory.length - 1);
+      if (historyIndex < 0) historyIndex = 0;
+    }
+
+    function clearCurrentSampleView(msg) {
+      currentSample = null;
+      clearSessionSnapshot();
+      updatePreviewSelectionHighlight(0);
+      $("img").removeAttribute("src");
+      closeImageLightbox();
+      $("sample-meta").textContent = msg || "当前样本已删除。";
+      const link = $("sample-link");
+      link.textContent = "";
+      link.href = "#";
+      applyAnnotationToScores(null);
+      applyLabelMetaToInputs(DEFAULT_LABEL_META);
+    }
+
+    async function reloadPreviewAfterDelete() {
+      await loadPreviewPage(previewState.page);
+      if (previewState.pages > 0 && previewState.page > previewState.pages) {
+        await loadPreviewPage(previewState.pages);
+      }
+      if (previewState.pages === 0) {
+        previewState.page = 1;
+        updatePreviewPageInfo();
+      }
+    }
+
+    async function deleteSampleFromPreview(sampleId) {
+      const sid = Number(sampleId);
+      if (!sid) return;
+      const yes = window.confirm(`确认删除样本 #${sid} 吗？将删除样本记录与对应图片文件，且不可恢复。`);
+      if (!yes) return;
+
+      const wasCurrent = !!currentSample && Number(currentSample.sample_id) === sid;
+      setErr("");
+      try {
+        const out = await api(`/api/sample/${sid}?delete_image=1`, null, "DELETE");
+        purgeSampleFromClientCache(sid);
+        for (const k of Object.keys(sampleCache)) {
+          delete sampleCache[k];
+        }
+        if (wasCurrent) {
+          clearCurrentSampleView(`样本ID ${sid} 已删除，正在加载下一张...`);
+        }
+        await refreshStats();
+        await reloadPreviewAfterDelete();
+        if (wasCurrent) {
+          if (previewNavActive) {
+            const moved = await nextPreviewOrderedSample();
+            if (!moved) {
+              await prevPreviewOrderedSample();
+            }
+          } else {
+            await nextSample();
+          }
+        }
+        let msg = `已删除样本 #${sid}`;
+        if (out?.image_deleted) msg += "（已删除本地图片）";
+        if (out?.image_warning) msg += `，图片删除提示: ${out.image_warning}`;
+        setErr(`${msg}。`);
+      } catch (e) {
+        setErr(`删除失败: ${e.message}`);
+      }
+    }
+
+    function renderPreviewCards(items) {
+      const root = $("preview-grid");
+      root.innerHTML = "";
+      previewOrderIds = (items || []).map((x) => Number(x.sample_id)).filter((x) => Number.isFinite(x));
+      previewOrderPage = Number(previewState.page || 1);
+      if (!previewNavActive) {
+        previewOrderIndex = -1;
+      }
+      if (!items || items.length === 0) {
+        const box = document.createElement("div");
+        box.className = "muted";
+        box.textContent = "当前筛选下没有样本。";
+        root.appendChild(box);
+        return;
+      }
+      items.forEach((s, idx) => {
+        const card = document.createElement("div");
+        const sid = Number(s?.sample_id || 0);
+        const statusKey = sampleStatusKey(s);
+        card.className = `preview-card preview-status-${statusKey}`;
+        if (sid > 0) {
+          card.dataset.sampleId = String(sid);
+          if (sid === Number(currentSample?.sample_id || 0)) {
+            card.classList.add("is-current");
+          }
+        }
+
+        const img = document.createElement("img");
+        img.loading = "lazy";
+        img.decoding = "async";
+        img.fetchPriority = "low";
+        img.src = buildImageUrl(s.image_url, true);
+        img.alt = `sample-${s.sample_id}`;
+        card.appendChild(img);
+
+        const meta = normalizeLabelMeta(s.annotation || DEFAULT_LABEL_META);
+        const metaBox = document.createElement("div");
+        metaBox.className = "preview-meta";
+        const status = sampleStatusText(s);
+        const annTime = formatAnnotationTime(s);
+        const createdTime = formatSampleCreatedTime(s);
+        const typeText = CONTENT_TYPE_LABELS[meta.content_type] || meta.content_type;
+        const excludeTags = [];
+        if (meta.exclude_from_score_train) excludeTags.push("排除打分");
+        if (meta.exclude_from_cls_train) excludeTags.push("排除分类");
+        const createdLabel = currentLang === "en" ? "Fetched" : "取得时间";
+        const annLabel = currentLang === "en" ? "Annotated" : "标注时间";
+        metaBox.innerHTML = `
+          <div class="preview-head">
+            <div class="preview-id">样本ID ${s.sample_id} | ${s.source}</div>
+            <button class="preview-delete-btn" type="button">删除</button>
+          </div>
+          <div>${status} | ${s.width}x${s.height}</div>
+          <div>${createdLabel}: ${createdTime}</div>
+          <div>${annLabel}: ${annTime}</div>
+          <div>类型: ${typeText}${excludeTags.length ? ` | ${excludeTags.join(" / ")}` : ""}</div>
+        `;
+        const delBtn = metaBox.querySelector(".preview-delete-btn");
+        if (delBtn) {
+          delBtn.onclick = async (ev) => {
+            ev.preventDefault();
+            ev.stopPropagation();
+            await deleteSampleFromPreview(s.sample_id);
+          };
+        }
+        card.appendChild(metaBox);
+
+        card.onclick = async () => {
+          try {
+            previewNavActive = true;
+            previewOrderIndex = Number(idx);
+            await openSampleById(s.sample_id, false);
+            window.scrollTo({ top: 0, behavior: "smooth" });
+            setErr(`已跳转到样本ID ${s.sample_id}，可直接修改并保存。`);
+          } catch (e) {
+            setErr(`跳转失败: ${e.message}`);
+          }
+        };
+        root.appendChild(card);
+      });
+      updatePreviewSelectionHighlight(Number(currentSample?.sample_id || 0));
+      queuePreviewPanelAlign();
+      if (currentLang === "en") localizeTree(root);
+    }
+
+    function updatePreviewSelectionHighlight(sampleId) {
+      const activeId = Number(sampleId || 0);
+      const cards = document.querySelectorAll("#preview-grid .preview-card[data-sample-id]");
+      cards.forEach((card) => {
+        const sid = Number(card.dataset.sampleId || 0);
+        card.classList.toggle("is-current", activeId > 0 && sid === activeId);
+      });
+    }
+
+    function syncPreviewOrderCursor(sampleId) {
+      const sid = Number(sampleId);
+      if (!sid || !previewOrderIds.length) {
+        previewOrderIndex = -1;
+        return false;
+      }
+      const idx = previewOrderIds.indexOf(sid);
+      if (idx >= 0) {
+        previewOrderIndex = idx;
+        return true;
+      }
+      previewOrderIndex = -1;
+      return false;
+    }
+
+    async function nextPreviewOrderedSample() {
+      if (!previewOrderIds.length) return false;
+      if (currentSample && Number(currentSample.sample_id)) {
+        const found = syncPreviewOrderCursor(currentSample.sample_id);
+        if (!found) return false;
+      }
+      if (previewOrderIndex >= 0 && previewOrderIndex < previewOrderIds.length - 1) {
+        previewOrderIndex += 1;
+        await openSampleById(previewOrderIds[previewOrderIndex], false);
+        return true;
+      }
+      const nextPage = Number(previewOrderPage || previewState.page || 1) + 1;
+      if (nextPage > Number(previewState.pages || 0)) {
+        return false;
+      }
+      await loadPreviewPage(nextPage);
+      if (!previewOrderIds.length) return false;
+      previewOrderIndex = 0;
+      await openSampleById(previewOrderIds[0], false);
+      return true;
+    }
+
+    async function prevPreviewOrderedSample() {
+      if (!previewOrderIds.length) return false;
+      if (currentSample && Number(currentSample.sample_id)) {
+        const found = syncPreviewOrderCursor(currentSample.sample_id);
+        if (!found) return false;
+      }
+      if (previewOrderIndex > 0) {
+        previewOrderIndex -= 1;
+        await openSampleById(previewOrderIds[previewOrderIndex], false);
+        return true;
+      }
+      const prevPage = Number(previewOrderPage || previewState.page || 1) - 1;
+      if (prevPage < 1) return false;
+      await loadPreviewPage(prevPage);
+      if (!previewOrderIds.length) return false;
+      previewOrderIndex = previewOrderIds.length - 1;
+      await openSampleById(previewOrderIds[previewOrderIndex], false);
+      return true;
+    }
+
+    function isTimeAscOrder() {
+      const sel = $("preview-order");
+      const raw = sel ? sel.value : (previewState.order || "desc");
+      return String(raw || "desc").toLowerCase() === "asc";
+    }
+
+    async function nextChronologicalSample() {
+      // Chronological "next" means moving from older -> newer.
+      return isTimeAscOrder()
+        ? await nextPreviewOrderedSample()
+        : await prevPreviewOrderedSample();
+    }
+
+    async function prevChronologicalSample() {
+      return isTimeAscOrder()
+        ? await prevPreviewOrderedSample()
+        : await nextPreviewOrderedSample();
+    }
+
+    async function loadPreviewSources() {
+      try {
+        const data = await api("/api/sources");
+        const src = $("preview-source");
+        const selected = src.value || "";
+        src.innerHTML = '<option value="">全部来源</option>';
+        for (const name of (data.sources || [])) {
+          const opt = document.createElement("option");
+          opt.value = name;
+          opt.textContent = name;
+          src.appendChild(opt);
+        }
+        src.value = selected;
+      } catch (e) {
+        setErr(`读取来源列表失败: ${e.message}`);
+      }
+    }
+
+    function syncPreviewStateFromControls(page) {
+      previewState.status = $("preview-status").value || "all";
+      previewState.source = $("preview-source").value || "";
+      previewState.size = Number($("preview-size").value || 24);
+      previewState.order = $("preview-order").value || "desc";
+      previewState.in_domain = $("preview-in-domain").value || "all";
+      previewState.content_type = $("preview-content-type").value || "all";
+      previewState.score_dim = $("preview-score-dim").value || "all";
+      previewState.score_value = $("preview-score-value").value || "all";
+      previewState.page = Math.max(1, Number(page || previewState.page || 1));
+    }
+
+    function buildPreviewQuery(opts = {}) {
+      const page = Math.max(1, Number(opts?.page || previewState.page || 1));
+      const size = Math.max(1, Number(opts?.size || previewState.size || 24));
+      const order = String(opts?.order || previewState.order || "desc").toLowerCase() === "asc" ? "asc" : "desc";
+      const afterId = Number(opts?.afterId || 0);
+      const qs = new URLSearchParams({
+        page: String(page),
+        size: String(size),
+        status: previewState.status || "all",
+      });
+      if (previewState.source) qs.set("source", previewState.source);
+      qs.set("order", order);
+      if (previewState.in_domain !== "all") qs.set("in_domain", previewState.in_domain);
+      if (previewState.content_type !== "all") qs.set("content_type", previewState.content_type);
+      if (previewState.score_dim !== "all" && previewState.score_value !== "all") {
+        qs.set("score_dim", previewState.score_dim);
+        qs.set("score_value", previewState.score_value);
+      }
+      if (afterId > 0) qs.set("after_id", String(afterId));
+      return qs;
+    }
+
+    async function findNextFilteredSampleId(afterSampleId) {
+      const anchorId = Number(afterSampleId || 0);
+      if (!(anchorId > 0)) return null;
+      syncPreviewStateFromControls(previewState.page || 1);
+      const qs = buildPreviewQuery({
+        page: 1,
+        size: 1,
+        order: "asc",
+        afterId: anchorId,
+      });
+      const data = await api(`/api/samples?${qs.toString()}`);
+      const items = Array.isArray(data?.items) ? data.items : [];
+      if (!items.length) return null;
+      const sid = Number(items[0]?.sample_id || 0);
+      if (!(sid > anchorId)) return null;
+      return sid;
+    }
+
+    async function loadPreviewPage(page) {
+      syncPreviewStateFromControls(page);
+      const qs = buildPreviewQuery({
+        page: previewState.page,
+        size: previewState.size,
+        order: previewState.order,
+      });
+      try {
+        const data = await api(`/api/samples?${qs.toString()}`);
+        previewState.page = Number(data.page || 1);
+        previewState.pages = Number(data.pages || 0);
+        previewState.total = Number(data.total || 0);
+        renderPreviewCards(data.items || []);
+        updatePreviewPageInfo();
+      } catch (e) {
+        setErr(`加载预览失败: ${e.message}`);
+      }
+    }
+
+    function refreshPreviewPageAsync() {
+      loadPreviewPage(previewState.page).catch(() => {});
+    }
+
+    async function refreshStats() {
+      try {
+        const st = await api("/api/stats");
+        $("st-total").textContent = st.total_samples;
+        $("st-labeled").textContent = st.labeled_samples;
+        $("st-skipped").textContent = st.skipped_samples;
+        $("st-unreviewed").textContent = st.unreviewed_samples;
+      } catch (e) {
+        setErr(`统计读取失败: ${e.message}`);
+      }
+    }
+
+    function applySourceHealthDisplay(st) {
+      const el = $("st-source-health");
+      const listEl = $("source-health-list");
+      const timeEl = $("source-health-time");
+      if (!el) return;
+      const enabled = Number(st?.enabled_count || 0);
+      const ok = Number(st?.ok_count || 0);
+      if (enabled <= 0) {
+        el.textContent = localizeText("未启用");
+      } else {
+        el.textContent = localizeText(`${ok}/${enabled} 可用`);
+      }
+      const items = Array.isArray(st?.items) ? st.items : [];
+      const detail = items
+        .map((x) => `${x.source}: ${x.enabled ? (x.ok ? "ok" : `fail(${x.message || "unknown"})`) : "disabled"}`)
+        .join(" | ");
+      el.title = detail || "";
+      if (listEl) {
+        listEl.innerHTML = "";
+        if (!items.length) {
+          const empty = document.createElement("div");
+          empty.className = "muted";
+          empty.textContent = "暂无图源状态信息。";
+          listEl.appendChild(empty);
+        } else {
+          items.forEach((x) => {
+            const row = document.createElement("div");
+            row.className = "source-health-row";
+
+            const source = document.createElement("div");
+            source.className = "mono";
+            source.textContent = String(x.source || "-");
+
+            const enabledChip = document.createElement("span");
+            enabledChip.className = `source-health-chip ${x.enabled ? "ok" : "off"}`;
+            enabledChip.textContent = x.enabled ? "已启用" : "已关闭";
+
+            const stateChip = document.createElement("span");
+            stateChip.className = `source-health-chip ${x.enabled ? (x.ok ? "ok" : "fail") : "off"}`;
+            stateChip.textContent = x.enabled ? (x.ok ? "正常" : "异常") : "-";
+
+            const msg = document.createElement("div");
+            msg.textContent = x.message ? String(x.message) : (x.enabled ? (x.ok ? "连接正常" : "连接失败") : "未启用该图源");
+
+            row.appendChild(source);
+            row.appendChild(enabledChip);
+            row.appendChild(stateChip);
+            row.appendChild(msg);
+            listEl.appendChild(row);
+          });
+        }
+      }
+      if (timeEl) {
+        const checkedAt = st?.checked_at || st?.updated_at || "";
+        timeEl.textContent = checkedAt ? `最近检测: ${checkedAt}` : "";
+      }
+    }
+
+    async function refreshSourceHealth(refresh = false) {
+      try {
+        const st = await api(`/api/source-health?refresh=${refresh ? 1 : 0}`);
+        applySourceHealthDisplay(st);
+      } catch (e) {
+        const el = $("st-source-health");
+        const listEl = $("source-health-list");
+        const timeEl = $("source-health-time");
+        if (el) {
+          el.textContent = localizeText("检测失败");
+          el.title = String(e.message || e);
+        }
+        if (listEl) {
+          listEl.innerHTML = "";
+          const fail = document.createElement("div");
+          fail.className = "muted";
+          fail.textContent = `图源检测失败: ${String(e.message || e)}`;
+          listEl.appendChild(fail);
+        }
+        if (timeEl) timeEl.textContent = "";
+      }
+    }
+
+    async function refreshDashboardStats() {
+      await refreshStats();
+      await refreshSourceHealth(false);
+    }
+
+    function resetAllScores() {
+      scores = { aesthetic: null, composition: null, color: null, sexual: null };
+    }
+
+    function normalizeScoreOrNull(value) {
+      if (value == null) return null;
+      const n = Number(value);
+      if (!Number.isFinite(n)) return null;
+      if (n < 1 || n > 5) return null;
+      if (!Number.isInteger(n)) return null;
+      return n;
+    }
+
+    function renderScoring() {
+      const root = $("score-root");
+      root.innerHTML = "";
+      const renderDims = singleDimMode ? dims.filter((x) => x.key === activeDim) : dims;
+      for (const d of renderDims) {
+        const dimGuide = guideCache?.dimensions?.[d.key] || {};
+        const dimTitle = dimGuide.title || d.name;
+        const group = document.createElement("div");
+        group.className = "score-group";
+        const title = document.createElement("div");
+        title.className = "score-title";
+        const left = document.createElement("span");
+        left.textContent = `${dimTitle} (${d.hotkey})`;
+        const right = document.createElement("span");
+        right.className = "muted";
+        right.textContent = `当前: ${scores[d.key] == null ? "-" : scores[d.key]}`;
+        title.appendChild(left);
+        title.appendChild(right);
+        group.appendChild(title);
+
+        const buttons = document.createElement("div");
+        buttons.className = "buttons";
+        for (let i = 1; i <= 5; i++) {
+          const b = document.createElement("button");
+          b.className = "btn";
+          if (scores[d.key] === i) b.classList.add("sel");
+          if (activeDim === d.key) b.classList.add("active-dim");
+          b.textContent = i;
+          b.onclick = () => {
+            scores[d.key] = i;
+            activeDim = d.key;
+            renderScoring();
+            persistSessionSnapshot();
+          };
+          buttons.appendChild(b);
+        }
+        group.appendChild(buttons);
+        group.onclick = () => {
+          activeDim = d.key;
+          renderScoring();
+          persistSessionSnapshot();
+        };
+        root.appendChild(group);
+      }
+      renderGuidePanel();
+      if (currentLang === "en") localizeTree(root);
+    }
+
+    function applyAnnotationToScores(annotation) {
+      if (!annotation || annotation.status !== "labeled") {
+        resetAllScores();
+        renderScoring();
+        return;
+      }
+      for (const key of ["aesthetic", "composition", "color", "sexual"]) {
+        scores[key] = normalizeScoreOrNull(annotation[key]);
+      }
+      renderScoring();
+    }
+
+    function showSample(s, opts = {}) {
+      const pushHistory = opts.pushHistory !== false;
+      currentSample = s;
+      sampleCache[s.sample_id] = s;
+      if (pushHistory) {
+        if (historyIndex < sampleHistory.length - 1) {
+          sampleHistory = sampleHistory.slice(0, historyIndex + 1);
+        }
+        sampleHistory.push(s.sample_id);
+        historyIndex = sampleHistory.length - 1;
+      }
+      const mainImg = $("img");
+      mainImg.loading = "eager";
+      mainImg.decoding = "async";
+      mainImg.fetchPriority = "high";
+      const fullSrc = buildImageUrl(s.image_url, false);
+      const thumbSrc = buildImageUrl(s.image_url, true);
+      const imgToken = ++sampleImageToken;
+      const fullWarm = !!fullSrc && preloadedImagePromises.has(fullSrc);
+      if (!fullSrc) {
+        if (mainImg.getAttribute("src")) {
+          mainImg.src = "";
+        }
+      } else if (fullWarm || !thumbSrc) {
+        if (mainImg.getAttribute("src") !== fullSrc) {
+          mainImg.src = fullSrc;
+        }
+      } else {
+        if (mainImg.getAttribute("src") !== thumbSrc) {
+          mainImg.src = thumbSrc;
+        }
+        preloadImage(fullSrc)
+          .then(() => {
+            if (imgToken !== sampleImageToken) return;
+            if (!currentSample || Number(currentSample.sample_id) !== Number(s.sample_id)) return;
+            if (mainImg.getAttribute("src") !== fullSrc) {
+              mainImg.src = fullSrc;
+            }
+          })
+          .catch(() => {});
+      }
+      mainImg.onload = () => {
+        queuePreviewPanelAlign();
+      };
+      if (mainImg.complete) {
+        queuePreviewPanelAlign();
+      }
+      const ann = s.annotation;
+      const annText = ann ? (ann.status === "labeled" ? "已标注（可修改）" : "已跳过") : "未标注";
+      const meta = normalizeLabelMeta(ann || DEFAULT_LABEL_META);
+      const domainText = meta.in_domain === 1 ? "目标域" : "非目标域";
+      const typeText = CONTENT_TYPE_LABELS[meta.content_type] || meta.content_type;
+      const excludeText = [
+        meta.exclude_from_score_train === 1 ? "打分排除" : "打分保留",
+        meta.exclude_from_cls_train === 1 ? "分类排除" : "分类保留",
+      ].join(" | ");
+      const seq = Number(s.sample_seq || 0);
+      const total = Number(s.sample_total || 0);
+      const seqText = seq > 0 && total > 0 ? `序号 ${seq}/${total} | ` : "";
+      $("sample-meta").textContent = localizeText(
+        `${seqText}样本ID ${s.sample_id} | ${s.source} | ${s.width}x${s.height} | ${annText} | ${domainText} | ${typeText} | ${excludeText}`
+      );
+      const link = $("sample-link");
+      if (s.source_page_url) {
+        link.textContent = s.source_page_url;
+        link.href = s.source_page_url;
+      } else {
+        link.textContent = "";
+        link.href = "#";
+      }
+      applyAnnotationToScores(ann);
+      applyLabelMetaToInputs(ann || DEFAULT_LABEL_META);
+      syncPreviewOrderCursor(s.sample_id);
+      updatePreviewSelectionHighlight(s.sample_id);
+      queuePreviewPanelAlign();
+      persistSessionSnapshot();
+      ensurePrefetchMaintainerTick();
+      if (currentLang === "en") localizeTree();
+    }
+
+    async function nextSample(opts = {}) {
+      if (nextInFlight) return false;
+      nextInFlight = true;
+      setErr("");
+      try {
+        previewNavActive = false;
+        const avoidSampleIds = Array.isArray(opts?.avoidSampleIds) ? opts.avoidSampleIds : null;
+        const usePrefetch = opts?.usePrefetch !== false;
+        const afterSampleId = Number(opts?.afterSampleId || 0);
+        const s = await fetchNextSampleFast(avoidSampleIds, { usePrefetch, afterSampleId });
+        const nextSrc = buildImageUrl(s?.image_url, false);
+        // Avoid blocking sample switch on image decode; warm it in background.
+        waitImageReady(nextSrc, 900).catch(() => {});
+        showSample(s, { pushHistory: true });
+        refreshStats();
+        startNextPrefetch(false).catch(() => {});
+        return true;
+      } catch (e) {
+        setErr(`获取样本失败: ${e.message}`);
+        return false;
+      } finally {
+        nextInFlight = false;
+      }
+    }
+
+    async function loadInitialSample() {
+      try {
+        // Prefer an unreviewed sample at startup so the first screen is "unlabeled" workflow.
+        const unreviewed = await api("/api/samples?page=1&size=1&status=unreviewed&order=desc");
+        if (unreviewed?.items?.length) {
+          showSample(unreviewed.items[0], { pushHistory: true });
+          refreshStats();
+          startNextPrefetch(false).catch(() => {});
+          return;
+        }
+      } catch (e) {
+        setErr(`读取未标注样本失败，回退到上次样本：${e.message}`);
+      }
+      try {
+        const last = await api("/api/last-reviewed?status=labeled");
+        if (last?.sample) {
+          showSample(last.sample, { pushHistory: true });
+          refreshStats();
+          startNextPrefetch(false).catch(() => {});
+          return;
+        }
+      } catch (e) {
+        setErr(`读取上次打分样本失败，已切换到新样本：${e.message}`);
+      }
+      await nextSample();
+    }
+
+    async function openSampleById(sampleId, pushHistory = false) {
+      const sid = Number(sampleId);
+      if (!sid) return;
+      const cached = sampleCache[sid];
+      if (cached) {
+        showSample(cached, { pushHistory });
+        return;
+      }
+      const s = await api(`/api/sample/${sid}`);
+      showSample(s, { pushHistory });
+    }
+
+    async function prevSample() {
+      previewNavActive = true;
+      if (await prevChronologicalSample()) return;
+      const atStart = isTimeAscOrder();
+      setErr(
+        atStart
+          ? "时间顺序已到最前（或当前样本不在预览筛选结果中）。"
+          : "时间顺序已到最末（或当前样本不在预览筛选结果中）。"
+      );
+    }
+
+    async function nextLoadedSample() {
+      previewNavActive = true;
+      if (await nextChronologicalSample()) return;
+      const atEnd = isTimeAscOrder();
+      setErr(
+        atEnd
+          ? "时间顺序已到最末（或当前样本不在预览筛选结果中）。"
+          : "时间顺序已到最前（或当前样本不在预览筛选结果中）。"
+      );
+    }
+
+    async function submitNextByPreviewOrder() {
+      previewNavActive = true;
+      const anchorSampleId = Number(currentSample?.sample_id || 0);
+      if (!(anchorSampleId > 0)) return false;
+      try {
+        const nextFilteredId = await findNextFilteredSampleId(anchorSampleId);
+        if (nextFilteredId && nextFilteredId > anchorSampleId) {
+          await openSampleById(nextFilteredId, false);
+          return true;
+        }
+      } catch (e) {
+        setErr(`按筛选结果定位下一张失败，正在获取新样本：${e.message}`);
+      }
+
+      setErr("当前筛选结果已到末尾，正在获取新样本...");
+      const boundaryAvoid = makeAvoidSampleIdSet(previewOrderIds);
+      for (const sidRaw of sampleHistory) {
+        const sid = Number(sidRaw || 0);
+        if (sid > 0) boundaryAvoid.add(sid);
+      }
+      for (const s of prefetchedSamples) {
+        const sid = Number(s?.sample_id || 0);
+        if (sid > 0) boundaryAvoid.add(sid);
+      }
+      clearPrefetchState();
+      const loaded = await nextSample({
+        avoidSampleIds: Array.from(boundaryAvoid),
+        usePrefetch: false,
+        afterSampleId: anchorSampleId,
+      });
+      if (!loaded) {
+        setErr("当前筛选结果已到末尾，且暂未获取到新样本。");
+        return false;
+      }
+      loadPreviewPage(previewState.page)
+        .then(async () => {
+          if (previewState.pages > 0 && previewState.page > previewState.pages) {
+            await loadPreviewPage(previewState.pages);
+          }
+        })
+        .catch(() => {});
+      setErr("当前筛选结果无下一张，已自动获取新样本。");
+      return false;
+    }
+
+    function currentPayload() {
+      if (!currentSample) return null;
+      const meta = readLabelMetaFromInputs();
+      return {
+        sample_id: currentSample.sample_id,
+        aesthetic: scores.aesthetic,
+        composition: scores.composition,
+        color: scores.color,
+        sexual: scores.sexual,
+        in_domain: meta.in_domain,
+        content_type: meta.content_type,
+        exclude_from_score_train: meta.exclude_from_score_train,
+        exclude_from_cls_train: meta.exclude_from_cls_train,
+      };
+    }
+
+    async function saveLabel(nextAfterSave, preferPreviewOrder = false) {
+      if (!currentSample) return;
+      if (singleDimMode) {
+        await saveSingleDimLabel(nextAfterSave, preferPreviewOrder);
+        return;
+      }
+      setErr(nextAfterSave ? "正在保存并切换下一张..." : "");
+      try {
+        const meta = readLabelMetaFromInputs();
+        const allowEmptyScores = Number(meta.in_domain) === 0 || Number(meta.exclude_from_score_train) === 1;
+        const missingDims = dims.filter((d) => scores[d.key] == null).map((d) => d.name);
+        if (!allowEmptyScores && missingDims.length) {
+          setErr(`请先完成打分: ${missingDims.join(" / ")}`);
+          return;
+        }
+        const payload = currentPayload();
+        if (!payload) return;
+        await api("/api/annotate", payload);
+        currentSample.annotation = {
+          status: "labeled",
+          aesthetic: payload.aesthetic,
+          composition: payload.composition,
+          color: payload.color,
+          sexual: payload.sexual,
+          in_domain: payload.in_domain,
+          content_type: payload.content_type,
+          exclude_from_score_train: payload.exclude_from_score_train,
+          exclude_from_cls_train: payload.exclude_from_cls_train,
+        };
+        sampleCache[currentSample.sample_id] = currentSample;
+        if (nextAfterSave) {
+          refreshPreviewPageAsync();
+          if (preferPreviewOrder) {
+            await submitNextByPreviewOrder();
+            return;
+          }
+          await nextSample();
+        } else {
+          await loadPreviewPage(previewState.page);
+          showSample(currentSample, { pushHistory: false });
+          setErr("已保存当前标注。");
+        }
+      } catch (e) {
+        setErr(`保存失败: ${e.message}`);
+      }
+    }
+
+    async function saveSingleDimLabel(nextAfterSave, preferPreviewOrder = false) {
+      if (!currentSample) return;
+      setErr(nextAfterSave ? "正在保存并切换下一张..." : "");
+      try {
+        const meta = readLabelMetaFromInputs();
+        const allowEmptyScores = Number(meta.in_domain) === 0 || Number(meta.exclude_from_score_train) === 1;
+        if (scores[activeDim] == null && !allowEmptyScores) {
+          setErr("请先为当前维度选择分数（1~5）。");
+          return;
+        }
+        if (scores[activeDim] == null && allowEmptyScores) {
+          const payloadAll = currentPayload();
+          if (!payloadAll) return;
+          await api("/api/annotate", payloadAll);
+          currentSample.annotation = {
+            status: "labeled",
+            aesthetic: payloadAll.aesthetic,
+            composition: payloadAll.composition,
+            color: payloadAll.color,
+            sexual: payloadAll.sexual,
+            in_domain: payloadAll.in_domain,
+            content_type: payloadAll.content_type,
+            exclude_from_score_train: payloadAll.exclude_from_score_train,
+            exclude_from_cls_train: payloadAll.exclude_from_cls_train,
+          };
+          sampleCache[currentSample.sample_id] = currentSample;
+          if (nextAfterSave) {
+            refreshPreviewPageAsync();
+            if (preferPreviewOrder) {
+              await submitNextByPreviewOrder();
+              return;
+            }
+            await nextSample();
+          } else {
+            await loadPreviewPage(previewState.page);
+            showSample(currentSample, { pushHistory: false });
+            setErr("已保存当前标注。");
+          }
+          return;
+        }
+        const payload = {
+          sample_id: currentSample.sample_id,
+          dim: activeDim,
+          score: Number(scores[activeDim]),
+          in_domain: meta.in_domain,
+          content_type: meta.content_type,
+          exclude_from_score_train: meta.exclude_from_score_train,
+          exclude_from_cls_train: meta.exclude_from_cls_train,
+        };
+        await api("/api/annotate-dim", payload);
+
+        const ann = currentSample.annotation && currentSample.annotation.status === "labeled"
+          ? { ...currentSample.annotation }
+          : {
+              status: "labeled",
+              aesthetic: null,
+              composition: null,
+              color: null,
+              sexual: null,
+            };
+        ann.status = "labeled";
+        ann[activeDim] = Number(scores[activeDim]);
+        ann.in_domain = payload.in_domain;
+        ann.content_type = payload.content_type;
+        ann.exclude_from_score_train = payload.exclude_from_score_train;
+        ann.exclude_from_cls_train = payload.exclude_from_cls_train;
+        currentSample.annotation = ann;
+        sampleCache[currentSample.sample_id] = currentSample;
+        if (nextAfterSave) {
+          refreshPreviewPageAsync();
+          if (preferPreviewOrder) {
+            await submitNextByPreviewOrder();
+            return;
+          }
+          await nextSample();
+        } else {
+          await loadPreviewPage(previewState.page);
+          showSample(currentSample, { pushHistory: false });
+          setErr("已保存当前维度标注。");
+        }
+      } catch (e) {
+        setErr(`单维保存失败: ${e.message}`);
+      }
+    }
+
+    async function skipSample() {
+      if (!currentSample) return;
+      setErr("");
+      try {
+        const meta = readLabelMetaFromInputs();
+        await api("/api/skip", {
+          sample_id: currentSample.sample_id,
+          in_domain: meta.in_domain,
+          content_type: meta.content_type,
+          exclude_from_score_train: meta.exclude_from_score_train,
+          exclude_from_cls_train: meta.exclude_from_cls_train,
+        });
+        currentSample.annotation = {
+          status: "skipped",
+          in_domain: meta.in_domain,
+          content_type: meta.content_type,
+          exclude_from_score_train: meta.exclude_from_score_train,
+          exclude_from_cls_train: meta.exclude_from_cls_train,
+        };
+        sampleCache[currentSample.sample_id] = currentSample;
+        await loadPreviewPage(previewState.page);
+        await nextSample();
+      } catch (e) {
+        setErr(`跳过失败: ${e.message}`);
+      }
+    }
+
+    function fillSettings(cfg) {
+      settingsCache = cfg;
+      guideCache = normalizeGuide(cfg);
+      $("cfg-file-path").textContent = cfg?._meta?.config_path || "未指定（使用默认配置）";
+      $("w-danbooru").value = cfg.sources.weights.danbooru ?? 0;
+      $("w-e621").value = cfg.sources.weights.e621 ?? 0;
+      $("w-local").value = cfg.sources.weights.local ?? 0;
+
+      $("set-server-host").value = cfg.server.host ?? "127.0.0.1";
+      $("set-server-port").value = cfg.server.port ?? 7860;
+      $("set-ui-language").value = cfg.ui?.language ?? "zh-CN";
+
+      $("set-sampling-max-attempts").value = cfg.sampling.max_attempts ?? 30;
+      $("set-sampling-timeout").value = cfg.sampling.request_timeout_sec ?? 20;
+      $("set-sampling-min-side").value = cfg.sampling.min_side ?? 256;
+      $("set-sampling-retries").value = cfg.sampling.request_retries ?? 2;
+
+      $("set-danbooru-enabled").checked = !!cfg.sources.danbooru.enabled;
+      $("set-danbooru-base-url").value = cfg.sources.danbooru.base_url ?? "";
+      $("set-danbooru-tags").value = cfg.sources.danbooru.tags ?? "";
+      $("set-danbooru-limit").value = cfg.sources.danbooru.limit ?? 100;
+      $("set-danbooru-user-agent").value = cfg.sources.danbooru.user_agent ?? "VibeCodeLabeler/1.0";
+      $("set-danbooru-username-env").value = cfg.sources.danbooru.username_env ?? "DANBOORU_USERNAME";
+      $("set-danbooru-api-key-env").value = cfg.sources.danbooru.api_key_env ?? "DANBOORU_API_KEY";
+
+      $("set-e621-enabled").checked = !!cfg.sources.e621.enabled;
+      $("set-e621-base-url").value = cfg.sources.e621.base_url ?? "";
+      $("set-e621-tags").value = cfg.sources.e621.tags ?? "";
+      $("set-e621-limit").value = cfg.sources.e621.limit ?? 100;
+      $("set-e621-user-agent").value = cfg.sources.e621.user_agent ?? "";
+      $("set-e621-login-env").value = cfg.sources.e621.login_env ?? "E621_LOGIN";
+      $("set-e621-api-key-env").value = cfg.sources.e621.api_key_env ?? "E621_API_KEY";
+
+      $("set-local-enabled").checked = !!cfg.sources.local.enabled;
+      $("set-local-recursive").checked = !!cfg.sources.local.recursive;
+      $("set-local-paths").value = (cfg.sources.local.paths || []).join("\n");
+      $("set-local-extensions").value = (cfg.sources.local.extensions || []).join(",");
+
+      $("set-storage-root-dir").value = cfg.storage.root_dir ?? "dataset";
+      $("set-storage-images-dir").value = cfg.storage.images_dir ?? "dataset/images";
+      $("set-storage-db-path").value = cfg.storage.db_path ?? "dataset/labels.db";
+      $("set-storage-webp-quality").value = cfg.storage.webp_quality ?? 95;
+
+      $("set-guide-aesthetic-desc").value = guideCache.dimensions.aesthetic.description || "";
+      $("set-guide-composition-desc").value = guideCache.dimensions.composition.description || "";
+      $("set-guide-color-desc").value = guideCache.dimensions.color.description || "";
+      $("set-guide-sexual-desc").value = guideCache.dimensions.sexual.description || "";
+      $("set-guide-aesthetic-examples").value = examplesMapToText(guideCache.dimensions.aesthetic.examples);
+      $("set-guide-composition-examples").value = examplesMapToText(guideCache.dimensions.composition.examples);
+      $("set-guide-color-examples").value = examplesMapToText(guideCache.dimensions.color.examples);
+      $("set-guide-sexual-examples").value = examplesMapToText(guideCache.dimensions.sexual.examples);
+      renderScoring();
+    }
+
+    function collectSettings() {
+      const cfg = {};
+      cfg.server = {
+        host: $("set-server-host").value.trim() || "127.0.0.1",
+        port: Number($("set-server-port").value || 7860),
+      };
+      cfg.ui = {
+        language: $("set-ui-language").value.trim() || "zh-CN",
+      };
+      cfg.sampling = {
+        max_attempts: Number($("set-sampling-max-attempts").value || 30),
+        request_timeout_sec: Number($("set-sampling-timeout").value || 20),
+        min_side: Number($("set-sampling-min-side").value || 256),
+        request_retries: Number($("set-sampling-retries").value || 2),
+      };
+      cfg.sources = {
+        weights: getWeights(),
+        danbooru: {
+          enabled: $("set-danbooru-enabled").checked,
+          base_url: $("set-danbooru-base-url").value.trim(),
+          tags: $("set-danbooru-tags").value.trim(),
+          limit: Number($("set-danbooru-limit").value || 100),
+          user_agent: $("set-danbooru-user-agent").value.trim() || "VibeCodeLabeler/1.0",
+          username_env: $("set-danbooru-username-env").value.trim() || "DANBOORU_USERNAME",
+          api_key_env: $("set-danbooru-api-key-env").value.trim() || "DANBOORU_API_KEY",
+        },
+        e621: {
+          enabled: $("set-e621-enabled").checked,
+          base_url: $("set-e621-base-url").value.trim(),
+          tags: $("set-e621-tags").value.trim(),
+          limit: Number($("set-e621-limit").value || 100),
+          user_agent: $("set-e621-user-agent").value.trim(),
+          login_env: $("set-e621-login-env").value.trim() || "E621_LOGIN",
+          api_key_env: $("set-e621-api-key-env").value.trim() || "E621_API_KEY",
+        },
+        local: {
+          enabled: $("set-local-enabled").checked,
+          paths: splitLines($("set-local-paths").value),
+          recursive: $("set-local-recursive").checked,
+          extensions: splitComma($("set-local-extensions").value),
+        },
+      };
+      cfg.storage = {
+        root_dir: $("set-storage-root-dir").value.trim() || "dataset",
+        images_dir: $("set-storage-images-dir").value.trim() || "dataset/images",
+        db_path: $("set-storage-db-path").value.trim() || "dataset/labels.db",
+        webp_quality: Number($("set-storage-webp-quality").value || 95),
+      };
+      cfg.rating_guide = {
+        dimensions: {
+          aesthetic: {
+            title: "美学",
+            description: $("set-guide-aesthetic-desc").value.trim(),
+            examples: textToExamplesMap($("set-guide-aesthetic-examples").value),
+          },
+          composition: {
+            title: "构图",
+            description: $("set-guide-composition-desc").value.trim(),
+            examples: textToExamplesMap($("set-guide-composition-examples").value),
+          },
+          color: {
+            title: "色彩",
+            description: $("set-guide-color-desc").value.trim(),
+            examples: textToExamplesMap($("set-guide-color-examples").value),
+          },
+          sexual: {
+            title: "色情",
+            description: $("set-guide-sexual-desc").value.trim(),
+            examples: textToExamplesMap($("set-guide-sexual-examples").value),
+          },
+        },
+      };
+      return cfg;
+    }
+
+    async function loadSettings() {
+      try {
+        const cfg = await api("/api/settings");
+        fillSettings(cfg);
+      } catch (e) {
+        setErr(`配置读取失败: ${e.message}`);
+      }
+    }
+
+    async function saveSettings() {
+      setErr("");
+      try {
+        const newCfg = collectSettings();
+        const resp = await api("/api/settings/save", { config: newCfg });
+        fillSettings(resp);
+        clearPrefetchStateAndWarm();
+        await refreshStats();
+        await api("/api/reindex-local", {});
+        await refreshSourceHealth(true);
+        const msg = "设置已保存并应用。若修改了 server host/port，请重启服务。";
+        setErr(msg);
+        window.alert(msg);
+      } catch (e) {
+        const msg = `保存失败: ${e.message}`;
+        setErr(msg);
+        window.alert(msg);
+      }
+    }
+
+    document.addEventListener("keydown", async (e) => {
+      if (isLightboxOpen()) {
+        if (e.key === "Escape") {
+          e.preventDefault();
+          closeImageLightbox();
+          return;
+        }
+        if (e.key === "+" || e.key === "=") {
+          e.preventDefault();
+          nudgeLightboxZoom(LIGHTBOX_ZOOM_STEP);
+          return;
+        }
+        if (e.key === "-") {
+          e.preventDefault();
+          nudgeLightboxZoom(-LIGHTBOX_ZOOM_STEP);
+          return;
+        }
+        if (e.key === "0") {
+          e.preventDefault();
+          fitLightboxZoom();
+          return;
+        }
+        if (e.key === "1") {
+          e.preventDefault();
+          resetLightboxZoom();
+        }
+        return;
+      }
+      const activeTag = String(e.target?.tagName || "").toUpperCase();
+      if (activeTag === "INPUT" || activeTag === "TEXTAREA" || activeTag === "SELECT" || e.target?.isContentEditable) return;
+      const key = e.key.toLowerCase();
+      if (!singleDimMode && ["1","2","3","4"].includes(key) && e.ctrlKey && !e.altKey && !e.shiftKey) {
+        activeDim = dims[["1","2","3","4"].indexOf(key)].key;
+        const targetSel = $("single-dim-target");
+        if (targetSel) targetSel.value = activeDim;
+        e.preventDefault();
+        renderScoring();
+        persistSessionSnapshot();
+        return;
+      }
+      if (!singleDimMode && ["1","2","3","4","5"].includes(key) && !e.ctrlKey && !e.altKey && !e.shiftKey) {
+        scores[activeDim] = Number(key);
+        renderScoring();
+        persistSessionSnapshot();
+        return;
+      }
+      if (singleDimMode && ["1","2","3","4","5"].includes(key)) {
+        scores[activeDim] = Number(key);
+        if (singleDimMode && autoNextOnScore) {
+          await saveSingleDimLabel(true, true);
+          return;
+        }
+        renderScoring();
+        persistSessionSnapshot();
+        return;
+      }
+      const sc = eventToShortcut(e);
+      if (sameShortcut(sc, hotkeys.save_only)) {
+        e.preventDefault();
+        await saveLabel(false);
+        return;
+      }
+      if (sameShortcut(sc, hotkeys.submit_preview_next)) {
+        e.preventDefault();
+        await saveLabel(true, true);
+        return;
+      }
+      if (sameShortcut(sc, hotkeys.prev)) {
+        e.preventDefault();
+        await prevSample();
+        return;
+      }
+      if (sameShortcut(sc, hotkeys.skip)) {
+        e.preventDefault();
+        await skipSample();
+        return;
+      }
+      if (sameShortcut(sc, hotkeys.next)) {
+        e.preventDefault();
+        await nextLoadedSample();
+      }
+    });
+
+    $("btn-prev").onclick = prevSample;
+    $("btn-save-only").onclick = () => saveLabel(false);
+    $("btn-submit-preview-next").onclick = () => saveLabel(true, true);
+    $("btn-skip").onclick = skipSample;
+    $("btn-delete-current").onclick = async () => {
+      if (!currentSample || !currentSample.sample_id) {
+        setErr("当前没有可删除样本。");
+        return;
+      }
+      await deleteSampleFromPreview(currentSample.sample_id);
+    };
+    $("btn-next").onclick = nextLoadedSample;
+    $("btn-refresh-stats").onclick = () => refreshDashboardStats();
+    $("btn-reindex").onclick = async () => {
+      try {
+        const x = await api("/api/reindex-local", {});
+        setErr(`本地索引已重建，文件数: ${x.local_indexed_files}`);
+      } catch (e) {
+        setErr(`重建索引失败: ${e.message}`);
+      }
+    };
+    $("btn-save-hotkeys").onclick = saveHotkeys;
+    $("btn-reset-hotkeys").onclick = resetHotkeys;
+    $("btn-save-settings").onclick = saveSettings;
+    $("btn-reload-settings").onclick = loadSettings;
+    $("btn-mark-in-domain").onclick = quickMarkInDomain;
+    $("btn-mark-out-domain-keep").onclick = quickMarkOutDomainKeep;
+    $("btn-mark-exclude").onclick = quickMarkExclude;
+    $("meta-in-domain").onchange = () => {
+      syncDomainMetaVisibility();
+      persistSessionSnapshot();
+    };
+    $("meta-content-type").onchange = persistSessionSnapshot;
+    $("meta-exclude-score").onchange = persistSessionSnapshot;
+    $("meta-exclude-cls").onchange = persistSessionSnapshot;
+    $("w-danbooru").onchange = clearPrefetchStateAndWarm;
+    $("w-e621").onchange = clearPrefetchStateAndWarm;
+    $("w-local").onchange = clearPrefetchStateAndWarm;
+    $("btn-preview-first").onclick = () => loadPreviewPage(1);
+    $("btn-preview-refresh").onclick = () => loadPreviewPage(1);
+    $("btn-preview-prev").onclick = () => loadPreviewPage(Math.max(1, previewState.page - 1));
+    $("btn-preview-next").onclick = () => loadPreviewPage(previewState.page + 1);
+    $("btn-preview-last").onclick = () => loadPreviewPage(Math.max(1, previewState.pages || 1));
+    $("btn-preview-jump").onclick = jumpPreviewPage;
+    $("preview-page-jump").onkeydown = (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        jumpPreviewPage();
+      }
+    };
+    $("preview-status").onchange = () => loadPreviewPage(1);
+    $("preview-source").onchange = () => loadPreviewPage(1);
+    $("preview-size").onchange = () => loadPreviewPage(1);
+    $("preview-order").onchange = () => loadPreviewPage(1);
+    $("preview-in-domain").onchange = () => loadPreviewPage(1);
+    $("preview-content-type").onchange = () => loadPreviewPage(1);
+    $("preview-score-dim").onchange = () => loadPreviewPage(1);
+    $("preview-score-value").onchange = () => loadPreviewPage(1);
+    $("single-dim-mode").onchange = () => {
+      singleDimMode = $("single-dim-mode").value === "1";
+      renderScoring();
+      persistSessionSnapshot();
+    };
+    $("single-dim-target").onchange = () => {
+      activeDim = $("single-dim-target").value || "aesthetic";
+      renderScoring();
+      persistSessionSnapshot();
+    };
+    $("single-dim-auto-next").onchange = () => {
+      autoNextOnScore = $("single-dim-auto-next").checked;
+      persistSessionSnapshot();
+    };
+    $("lang-toggle").onclick = toggleLanguage;
+    $("theme-toggle").onclick = toggleTheme;
+    $("img").onclick = openImageLightbox;
+    $("img-lightbox-zoom-in").onclick = () => nudgeLightboxZoom(LIGHTBOX_ZOOM_STEP);
+    $("img-lightbox-zoom-out").onclick = () => nudgeLightboxZoom(-LIGHTBOX_ZOOM_STEP);
+    $("img-lightbox-zoom-reset").onclick = resetLightboxZoom;
+    $("img-lightbox-zoom-fit").onclick = fitLightboxZoom;
+    $("img-lightbox-close").onclick = closeImageLightbox;
+    $("img-lightbox").onclick = (e) => {
+      if (e.target === $("img-lightbox")) {
+        closeImageLightbox();
+      }
+    };
+    $("img-lightbox-stage").onwheel = (e) => {
+      if (!isLightboxOpen()) return;
+      e.preventDefault();
+      nudgeLightboxZoom(e.deltaY < 0 ? LIGHTBOX_ZOOM_STEP : -LIGHTBOX_ZOOM_STEP);
+    };
+    $("img-lightbox-img").ondblclick = (e) => {
+      e.preventDefault();
+      if (lightboxZoom <= 1.01) {
+        resetLightboxZoom();
+      } else {
+        fitLightboxZoom();
+      }
+    };
+    window.addEventListener("resize", () => {
+      queuePreviewPanelAlign();
+    });
+    window.addEventListener("beforeunload", persistSessionSnapshot);
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "hidden") {
+        persistSessionSnapshot();
+        return;
+      }
+      ensurePrefetchMaintainerTick();
+    });
+
+    (async function init() {
+      initLanguage();
+      initTheme();
+      loadHotkeys();
+      singleDimMode = $("single-dim-mode").value === "1";
+      activeDim = $("single-dim-target").value || "aesthetic";
+      // Force default behavior: scoring does not auto-jump unless user explicitly enables it.
+      $("single-dim-auto-next").checked = false;
+      autoNextOnScore = false;
+      renderScoring();
+      applyLabelMetaToInputs(DEFAULT_LABEL_META);
+      await loadSettings();
+      startPrefetchMaintainer();
+      await refreshDashboardStats();
+      await loadPreviewSources();
+      await loadPreviewPage(1);
+      const hasSnapshot = !!readSessionSnapshot();
+      const restored = hasSnapshot ? await restoreSessionSnapshot() : false;
+      if (!restored && !hasSnapshot) {
+        await loadInitialSample();
+      }
+      if (!restored && hasSnapshot) {
+        setErr("检测到上次会话，但本次恢复失败。已保留会话快照，请稍后刷新重试。");
+      }
+      queuePreviewPanelAlign();
+      if (currentSample) {
+        startNextPrefetch(false).catch(() => {});
+      }
+    })();
+  </script>
+</body>
+</html>

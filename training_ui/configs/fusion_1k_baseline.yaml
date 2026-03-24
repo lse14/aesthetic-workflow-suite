@@ -1,0 +1,42 @@
+data:
+  # Relative paths are resolved from this YAML file directory.
+  annotations: ../../data/annotations.jsonl
+  # If image_path in annotations is relative (common), this helps resolve it.
+  # Example:
+  # - image_path = dataset/images/xxx.webp -> ../../dataset/images/xxx.webp
+  image_root: ../../
+  train_split: train
+  val_split: val
+
+models:
+  jtp3_model_id: RedRocket/JTP-3
+  # 默认禁用回退，优先全局使用 JTP-3；如需兜底可改成其它视觉编码器。
+  jtp3_fallback_model_id: null
+  hf_token_env: HF_TOKEN
+  waifu_clip_model_name: ViT-L-14
+  waifu_clip_pretrained: openai
+  # Optional local waifu-v3 head safetensors path.
+  waifu_v3_head_path: ../../model/_models/waifu-scorer-v3/model.safetensors
+  freeze_extractors: true
+  include_waifu_score: true
+
+model_head:
+  # Slightly smaller head for ~1k samples to reduce overfitting risk.
+  hidden_dims: [768, 256]
+  dropout: 0.3
+
+training:
+  seed: 42
+  device: cuda
+  batch_size: 8
+  num_workers: 2
+  epochs: 16
+  lr: 0.0002
+  weight_decay: 0.0002
+  # smooth_l1 is usually more stable than mse on small/noisy labeled sets.
+  loss: smooth_l1
+  # 4 score heads + 1 cls head: keep cls contribution moderate at first.
+  cls_loss_weight: 0.8
+  # If cls positive/negative is highly imbalanced, set a value like 1.5~3.0.
+  cls_pos_weight: null
+  output_dir: ../../outputs/fusion_1k_baseline

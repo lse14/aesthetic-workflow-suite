@@ -1,0 +1,498 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>推理面板</title>
+  <style>
+    :root{--bg:#f4f7fc;--card:#fff;--fg:#11233b;--muted:#5f7185;--line:#d7e1ee;--chip:#eaf1fa;--accent:#0f766e;--blue:#1d4ed8;--danger:#dc2626}
+    body[data-theme="dark"]{--bg:#0c1420;--card:#111d2b;--fg:#e5edf7;--muted:#9fb0c4;--line:#25374d;--chip:#1b2b3f;--accent:#1f9d8f;--blue:#3b82f6;--danger:#ef4444}
+    *{box-sizing:border-box} body{margin:0;font-family:"Segoe UI","PingFang SC",sans-serif;background:var(--bg);color:var(--fg)}
+    .wrap{max-width:1520px;margin:0 auto;padding:14px}.card{border:1px solid var(--line);border-radius:12px;background:var(--card);padding:12px;margin-bottom:12px}
+    .hero,.line{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.hero{justify-content:space-between}
+    .tabs{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+    .tabbtn{background:var(--chip);color:var(--fg);border:1px solid var(--line)}
+    .tabbtn.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+    .layout{display:grid;grid-template-columns:minmax(340px,430px) 1fr;gap:12px;align-items:start}
+    .grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}.field{display:grid;gap:4px;margin-bottom:8px} label{font-size:12px;color:var(--muted)}
+    .pathrow{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center}
+    input,select{width:100%;padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--fg)}
+    button{border:0;border-radius:8px;padding:8px 12px;color:#fff;background:var(--accent);font-weight:700;cursor:pointer}
+    button.blue{background:var(--blue)} button.red{background:var(--danger)}
+    .muted{font-size:12px;color:var(--muted)} .err{min-height:18px;color:var(--danger);font-weight:700}
+    .mono{font-family:Consolas,monospace;font-size:12px;line-height:1.5;white-space:pre-wrap;border:1px solid var(--line);border-radius:8px;padding:8px;max-height:260px;overflow:auto}
+    .statuslog{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+    .table{max-height:420px;overflow:auto;border:1px solid var(--line);border-radius:8px}
+    table{width:100%;border-collapse:collapse;min-width:920px;font-size:12px} th,td{border-bottom:1px solid var(--line);padding:6px;text-align:left;vertical-align:top}
+    th{position:sticky;top:0;background:var(--chip)} tr:hover{background:color-mix(in srgb,var(--chip) 55%,var(--card))} tr.sel{background:color-mix(in srgb,var(--accent) 15%,var(--card))}
+    .thumb{width:64px;height:64px;object-fit:cover;border:1px solid var(--line);border-radius:6px}
+    .detail{display:grid;grid-template-columns:300px 1fr;gap:8px}.big{width:100%;max-height:320px;object-fit:contain;border:1px solid var(--line);border-radius:8px}
+    .dropzone{border:2px dashed var(--line);border-radius:10px;padding:14px;text-align:center;background:color-mix(in srgb,var(--chip) 55%,var(--card));color:var(--muted);font-size:12px}
+    .dropzone.drag{border-color:var(--accent);color:var(--accent);background:color-mix(in srgb,var(--accent) 14%,var(--card))}
+    .hrow{display:grid;grid-template-columns:90px 1fr 110px;gap:8px;align-items:center;margin:6px 0}
+    .bar{height:10px;border:1px solid var(--line);border-radius:999px;overflow:hidden;background:var(--chip)}
+    .bar.th{position:relative;overflow:visible}
+    .thline{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--danger);opacity:.85}
+    .thlab{position:absolute;top:-18px;transform:translateX(-50%);font-size:10px;color:var(--danger);white-space:nowrap}
+    .fill{height:100%;background:var(--accent)}
+    .fill.blue{background:var(--blue)}
+    .fill.warn{background:var(--danger)}
+    .histhead{display:flex;gap:8px;align-items:center;justify-content:space-between;margin-top:8px}
+    .histlist{max-height:180px;overflow:auto;border:1px solid var(--line);border-radius:8px;padding:6px}
+    .histitem{display:grid;grid-template-columns:80px 1fr;gap:8px;border:1px solid var(--line);border-radius:8px;padding:6px;margin-bottom:6px;cursor:pointer;background:color-mix(in srgb,var(--card) 90%,var(--chip))}
+    .histitem img{width:80px;height:60px;object-fit:cover;border:1px solid var(--line);border-radius:6px}
+    .histitem:last-child{margin-bottom:0}
+    .histitem:hover{background:color-mix(in srgb,var(--chip) 70%,var(--card))}
+    @media (max-width:1180px){.layout,.statuslog,.detail,.grid2{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <div class="hero">
+        <h2 style="margin:0">批量推理与单图分析</h2>
+        <button id="lang-toggle" class="blue" type="button">EN</button>
+        <button id="theme-toggle" class="blue" type="button">夜间模式</button>
+      </div>
+      <div class="muted">支持：批量推理结果网页查看、单图路径/上传推理、五头解构（四维打分 + in_domain 分类）。</div>
+      <div class="tabs">
+        <button id="tab-batch" class="tabbtn active" type="button">批量推理页面</button>
+        <button id="tab-single" class="tabbtn" type="button">单图推理页面</button>
+      </div>
+    </div>
+
+    <div class="layout">
+      <div>
+        <div class="card" id="card-batch">
+          <h3 style="margin:0 0 8px 0">批量推理</h3>
+          <div class="field"><label>配置文件 config_path</label><input id="config-path" value="config.yaml" /></div>
+          <div class="field">
+            <label>checkpoint（必填）</label>
+            <div class="pathrow"><input id="checkpoint" placeholder="Model path, e.g. D:\models\my_model.safetensors" /><button id="btn-browse-checkpoint" class="blue" type="button">浏览</button></div>
+          </div>
+          <div class="field">
+            <label>input_dir（可空，自动推断）</label>
+            <div class="pathrow"><input id="input-dir" placeholder="Optional. Empty => infer_ui\data\infer_images, then checkpoint sibling \images" /><button id="btn-browse-input-dir" class="blue" type="button">浏览</button></div>
+          </div>
+          <div class="field">
+            <label>output_dir（可空，自动推断）</label>
+            <div class="pathrow"><input id="output-dir" placeholder="Optional. Empty => infer_ui\outputs\infer_run" /><button id="btn-browse-output-dir" class="blue" type="button">浏览</button></div>
+          </div>
+          <div class="grid2">
+            <div class="field">
+              <label>device</label>
+              <select id="device">
+                <option value="auto">auto (推荐)</option>
+                <option value="cpu">cpu</option>
+                <option value="gpu">gpu (自动检测/安装)</option>
+              </select>
+            </div>
+            <div class="field"><label>batch_size</label><input id="batch-size" type="number" min="1" value="8" /></div>
+          </div>
+          <div class="grid2">
+            <div class="field"><label>special_threshold</label><input id="special-threshold" type="number" min="0" max="1" step="0.01" value="0.5" /></div>
+            <div class="field"><label>organize</label><select id="organize"><option value="auto">auto</option><option value="on">on</option><option value="off">off</option></select></div>
+          </div>
+          <div class="line">
+            <button id="btn-start">启动推理</button>
+            <button id="btn-stop" class="red">停止推理</button>
+            <button id="btn-refresh" class="blue">刷新状态</button>
+            <button id="btn-use-output" class="blue">同步到结果目录</button>
+          </div>
+          <div id="err" class="err"></div>
+        </div>
+
+        <div class="card" id="card-single">
+          <h3 style="margin:0 0 8px 0">单图推理</h3>
+          <div class="field">
+            <label>单图模型路径 checkpoint</label>
+            <div class="pathrow"><input id="single-checkpoint" placeholder="留空则沿用批量页 checkpoint" /><button id="btn-browse-single-checkpoint" class="blue" type="button">浏览</button></div>
+          </div>
+          <div class="field">
+            <label>服务器本地路径加载</label>
+            <div class="pathrow"><input id="single-image-path" placeholder="D:\images\demo.png" /><button id="btn-browse-single-image" class="blue" type="button">浏览</button></div>
+          </div>
+          <div class="line"><button id="btn-single-path">按路径推理</button></div>
+          <div class="field"><label>浏览器上传</label><input id="single-file" type="file" accept="image/*" /></div>
+          <div id="single-dropzone" class="dropzone">拖拽图片到这里上传（也可继续使用文件选择）</div>
+          <div class="line"><button id="btn-single-upload">上传并推理</button></div>
+          <div id="single-meta" class="mono">等待单图推理。</div>
+          <div class="histhead">
+            <div class="line">
+              <span class="muted">历史保留</span>
+              <input id="single-history-limit" type="number" min="1" max="200" value="20" style="width:80px" />
+              <span class="muted">条</span>
+            </div>
+            <div class="line">
+              <button id="btn-single-history-refresh" class="blue" type="button">刷新历史</button>
+              <button id="btn-single-history-clear" class="red" type="button">清空历史</button>
+            </div>
+          </div>
+          <div id="single-history" class="histlist"></div>
+        </div>
+      </div>
+
+      <div>
+        <div class="card statuslog" id="card-statuslog">
+          <div><h3 style="margin:0 0 8px 0">任务状态</h3><div id="status" class="mono"></div></div>
+          <div><h3 style="margin:0 0 8px 0">实时日志</h3><div id="logs" class="mono"></div></div>
+        </div>
+
+        <div class="card" id="card-results">
+          <h3 style="margin:0 0 8px 0">批量结果查看</h3>
+          <div class="grid2">
+            <div class="field"><label>结果目录</label><input id="result-output-dir" /></div>
+            <div class="field"><label>关键词过滤</label><input id="result-q" /></div>
+          </div>
+          <div class="grid2">
+            <div class="field"><label>样本过滤</label><select id="result-special-filter"><option value="all">全部</option><option value="special">仅特殊样本</option><option value="in_domain">仅目标域</option></select></div>
+            <div class="field"><label>排序字段</label><select id="result-sort-by"><option value="">不排序</option><option value="aesthetic">美学</option><option value="composition">构图</option><option value="color">色彩</option><option value="sexual">色情</option><option value="in_domain_prob">in_domain概率</option><option value="special_tag">特殊标签</option></select></div>
+          </div>
+          <div class="line">
+            <select id="result-sort-order"><option value="desc">降序</option><option value="asc">升序</option></select>
+            <select id="result-page-size"><option value="12">12</option><option value="24" selected>24</option><option value="48">48</option><option value="96">96</option></select>
+            <button id="btn-result-refresh" class="blue">刷新结果</button>
+            <button id="btn-result-export" class="blue">导出当前筛选CSV</button>
+            <button id="btn-result-prev">上一页</button>
+            <button id="btn-result-next">下一页</button>
+            <span id="result-page-info" class="muted"></span>
+          </div>
+          <div id="result-summary" class="mono" style="max-height:160px"></div>
+          <div class="table">
+            <table>
+              <thead><tr><th>预览</th><th>文件</th><th>A</th><th>C</th><th>D</th><th>F</th><th>in_domain</th><th>特殊</th><th>错误</th></tr></thead>
+              <tbody id="result-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="card" id="card-detail">
+          <h3 style="margin:0 0 8px 0">五头解构详情</h3>
+          <div class="detail">
+            <div><img id="detail-image" class="big" alt="detail"/><div id="detail-meta" class="mono"></div></div>
+            <div id="detail-heads"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const $=(id)=>document.getElementById(id); const THEME_KEY="vibecode.infer.theme"; const HISTORY_KEY="vibecode.infer.single.history"; const LANG_KEY="vibecode.infer.lang";
+    let lastLogId=0,pollTimer=null,lastRunning=null;
+    let currentView="batch";
+    let droppedFile=null;
+    let singleHistory=[];
+    let currentLang="zh-CN";
+    let i18nBusy=false;
+    let i18nObserver=null;
+    const rs={page:1,pages:0,total:0,selected:"",specialThreshold:null};
+    const ZH_EN={
+      "推理面板":"Inference Panel",
+      "批量推理与单图分析":"Batch Inference & Single Image Analysis",
+      "支持：批量推理结果网页查看、单图路径/上传推理、五头解构（四维打分 + in_domain 分类）。":"Supports: batch inference web results, single-image path/upload inference, and five-head breakdown (4 scores + in_domain).",
+      "批量推理页面":"Batch Inference",
+      "单图推理页面":"Single Image",
+      "批量推理":"Batch Inference",
+      "启动推理":"Start Inference",
+      "停止推理":"Stop Inference",
+      "刷新状态":"Refresh Status",
+      "同步到结果目录":"Sync Output Dir",
+      "单图推理":"Single Image Inference",
+      "服务器本地路径加载":"Server Local Path",
+      "按路径推理":"Infer by Path",
+      "浏览器上传":"Browser Upload",
+      "上传并推理":"Upload and Infer",
+      "等待单图推理。":"Waiting for single-image inference.",
+      "历史保留":"History",
+      "条":"items",
+      "刷新历史":"Refresh History",
+      "清空历史":"Clear History",
+      "任务状态":"Task Status",
+      "实时日志":"Live Logs",
+      "批量结果查看":"Batch Results",
+      "结果目录":"Output Directory",
+      "关键词过滤":"Keyword Filter",
+      "样本过滤":"Sample Filter",
+      "全部":"All",
+      "仅特殊样本":"Special Only",
+      "仅目标域":"In-domain Only",
+      "排序字段":"Sort By",
+      "不排序":"No Sort",
+      "美学":"Aesthetic",
+      "构图":"Composition",
+      "色彩":"Color",
+      "色情":"Sexual",
+      "in_domain概率":"in_domain Prob",
+      "特殊标签":"Special Tag",
+      "降序":"Desc",
+      "升序":"Asc",
+      "刷新结果":"Refresh Results",
+      "导出当前筛选CSV":"Export Filtered CSV",
+      "上一页":"Prev Page",
+      "下一页":"Next Page",
+      "预览":"Preview",
+      "文件":"File",
+      "特殊":"Special",
+      "错误":"Error",
+      "五头解构详情":"Five-head Detail",
+      "夜间模式":"Dark Mode",
+      "日间模式":"Light Mode",
+      "当前无推理任务。":"No inference task.",
+      "读取状态失败: ":"Failed to read status: ",
+      "读取日志失败: ":"Failed to read logs: ",
+      "启动失败: ":"Start failed: ",
+      "停止失败: ":"Stop failed: ",
+      "加载结果失败: ":"Failed to load results: ",
+      "导出失败: ":"Export failed: ",
+      "读取默认配置失败: ":"Failed to load defaults: ",
+      "打开文件选择器失败: ":"File picker failed: ",
+      "浏览":"Browse",
+      "请先输入单图路径。":"Please input an image path first.",
+      "单图路径推理失败: ":"Single path inference failed: ",
+      "请先选择或拖拽图片。":"Please select or drag an image first.",
+      "上传推理失败: ":"Upload inference failed: ",
+      "请先选择或拖拽图片。":"Please select or drag an image first.",
+      "拖拽图片到这里上传（也可继续使用文件选择）":"Drag image here to upload (or keep using file picker)",
+      "拖拽文件不是图片。":"Dragged file is not an image.",
+      "路径推理完成":"Path inference done",
+      "上传推理完成":"Upload inference done",
+      "历史回看":"History Preview",
+      "目标域":"In-domain",
+      "特殊样本":"Special Sample",
+      "判定规则: in_domain_prob >= 阈值 => 目标域；否则特殊样本。当前special_tag=":"Rule: in_domain_prob >= threshold => In-domain, otherwise Special. current special_tag=",
+      "阈值":"threshold",
+      "页":"Page ",
+      "筛选后 ":"Filtered ",
+      "导出当前筛选CSV":"Export Current Filter as CSV",
+      "简中":"ZH",
+      "暂无历史记录。":"No history yet.",
+      "启动失败:":"Start failed:",
+      "停止失败:":"Stop failed:",
+      "加载结果失败:":"Failed to load results:",
+      "导出失败:":"Export failed:",
+      "读取默认配置失败:":"Failed to load defaults:",
+      "读取状态失败:":"Failed to read status:",
+      "读取日志失败:":"Failed to read logs:",
+      "单图路径推理失败:":"Single path inference failed:",
+      "上传推理失败:":"Upload inference failed:",
+      "筛选后":"Filtered",
+    };
+    const EN_ZH=Object.fromEntries(Object.entries(ZH_EN).map(([zh,en])=>[en,zh]));
+    const ZH_KEYS=Object.keys(ZH_EN).sort((a,b)=>b.length-a.length);
+    const EN_KEYS=Object.keys(EN_ZH).sort((a,b)=>b.length-a.length);
+    function replaceByMap(text,map,keys){let out=String(text??"");for(const k of keys)out=out.split(k).join(map[k]);return out;}
+    function localizeText(text){return currentLang==="en"?replaceByMap(text,ZH_EN,ZH_KEYS):replaceByMap(text,EN_ZH,EN_KEYS);}
+    function localizeTree(root=document.body){
+      const walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT);
+      let n=null;
+      while((n=walker.nextNode())){if(!n.nodeValue||!n.nodeValue.trim())continue;n.nodeValue=localizeText(n.nodeValue);}
+      document.title=localizeText(document.title);
+    }
+    function startI18nObserver(){
+      if(i18nObserver)return;
+      i18nObserver=new MutationObserver(()=>{if(currentLang!=="en"||i18nBusy)return;i18nBusy=true;try{localizeTree();}finally{i18nBusy=false;}});
+      i18nObserver.observe(document.body,{childList:true,subtree:true,characterData:true});
+    }
+    function applyLanguage(lang,persist=true){
+      currentLang=lang==="en"?"en":"zh-CN";
+      document.documentElement.lang=currentLang==="en"?"en":"zh-CN";
+      $("lang-toggle").textContent=currentLang==="en"?"ZH":"EN";
+      if(persist)localStorage.setItem(LANG_KEY,currentLang);
+      const now=document.body.getAttribute("data-theme")==="dark"?"dark":"light";
+      applyTheme(now);
+      localizeTree();
+    }
+    function initLanguage(){const s=localStorage.getItem(LANG_KEY);applyLanguage(s==="en"?"en":"zh-CN",false);}
+    function toggleLanguage(){applyLanguage(currentLang==="en"?"zh-CN":"en");}
+    function applyTheme(t){const n=t==="dark"?"dark":"light";document.body.setAttribute("data-theme",n);$("theme-toggle").textContent=currentLang==="en"?(n==="dark"?"Light Mode":"Dark Mode"):(n==="dark"?"日间模式":"夜间模式");}
+    function initTheme(){const s=localStorage.getItem(THEME_KEY);if(s==="dark"||s==="light"){applyTheme(s);return;}const pd=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches;applyTheme(pd?"dark":"light");}
+    function toggleTheme(){const now=document.body.getAttribute("data-theme")==="dark"?"dark":"light";const next=now==="dark"?"light":"dark";applyTheme(next);localStorage.setItem(THEME_KEY,next);}
+    function switchView(view){
+      currentView=(view==="single")?"single":"batch";
+      const showBatch=currentView==="batch";
+      $("card-batch").style.display=showBatch?"":"none";
+      $("card-statuslog").style.display=showBatch?"":"none";
+      $("card-results").style.display=showBatch?"":"none";
+      $("card-single").style.display=showBatch?"none":"";
+      $("card-detail").style.display="";
+      $("tab-batch").classList.toggle("active",showBatch);
+      $("tab-single").classList.toggle("active",!showBatch);
+    }
+    function setErr(m){
+      const msg=localizeText(m||"");
+      $("err").textContent=msg;
+      if(msg && currentView==="single"){
+        $("single-meta").textContent=msg;
+      }
+    }
+    async function api(path,method="GET",body=null,isForm=false){const h={};let p=undefined;if(body!=null){if(isForm){p=body;}else{h["Content-Type"]="application/json";p=JSON.stringify(body);}}const r=await fetch(path,{method,headers:h,body:p});const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.detail||`${r.status} ${r.statusText}`);return d;}
+    async function pickByDialog(kind,currentValue){
+      try{
+        const q=new URLSearchParams({kind:String(kind||"")});
+        if((currentValue||"").trim())q.set("current",String(currentValue).trim());
+        const d=await api(`/api/dialog/pick?${q.toString()}`);
+        return d.path||"";
+      }catch(e){
+        setErr(`打开文件选择器失败: ${e.message}`);
+        return "";
+      }
+    }
+    function fmtTime(iso){if(!iso)return"-";const d=new Date(iso);return Number.isNaN(d.getTime())?iso:d.toLocaleString();}
+    function fmtNum(v,n=3){if(v==null||Number.isNaN(Number(v)))return"-";return Number(v).toFixed(n);}
+    function esc(s){return String(s??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;");}
+    function historyLimit(){const n=Number($("single-history-limit").value||20);return Math.max(1,Math.min(200,n));}
+    function saveHistory(){try{localStorage.setItem(HISTORY_KEY,JSON.stringify(singleHistory.slice(0,200)));}catch(_){}}
+    function loadHistory(){try{const raw=localStorage.getItem(HISTORY_KEY);if(!raw)return;const arr=JSON.parse(raw);if(Array.isArray(arr))singleHistory=arr;}catch(_){}}
+    function renderSingleHistory(){
+      const root=$("single-history");
+      root.innerHTML="";
+      const lim=historyLimit();
+      singleHistory=singleHistory.slice(0,lim);
+      if(singleHistory.length===0){root.innerHTML='<div class="muted">暂无历史记录。</div>';return;}
+      for(let i=0;i<singleHistory.length;i++){
+        const it=singleHistory[i];
+        const card=document.createElement("div");
+        card.className="histitem";
+        card.innerHTML=`<img src="${esc(it.image_url||"")}" alt="h"/><div><div><b>${esc(it.from||"single")}</b> #${singleHistory.length-i}</div><div class="muted">${esc(it.relative_path||it.image_path||"-")}</div><div class="muted">A:${fmtNum(it.aesthetic)} C:${fmtNum(it.composition)} D:${fmtNum(it.color)} F:${fmtNum(it.sexual)}</div><div class="muted">in_domain:${fmtNum(it.in_domain_prob,4)} | special:${it.special_tag??"-"}</div></div>`;
+        card.onclick=()=>{renderDetail(it);$("single-meta").textContent=`历史回看\nsource: ${it.from||"-"}\nimage_path: ${it.image_path||"-"}\nspecial_tag: ${it.special_tag??"-"}\nspecial_reason: ${it.special_reason||"-"}`;};
+        root.appendChild(card);
+      }
+    }
+    function pushSingleHistory(item,from){
+      const one=JSON.parse(JSON.stringify(item||{}));
+      one.from=from||"single";
+      one._saved_at=new Date().toISOString();
+      const key=one.image_path||one.relative_path||`${one.from}_${one._saved_at}`;
+      singleHistory=singleHistory.filter(x=>(x.image_path||x.relative_path||"")!==key);
+      singleHistory.unshift(one);
+      singleHistory=singleHistory.slice(0,historyLimit());
+      saveHistory();
+      renderSingleHistory();
+    }
+    function bindDropzone(){
+      const zone=$("single-dropzone");
+      const fi=$("single-file");
+      const enter=(e)=>{e.preventDefault();e.stopPropagation();zone.classList.add("drag");};
+      const over=(e)=>{e.preventDefault();e.stopPropagation();zone.classList.add("drag");};
+      const leave=(e)=>{e.preventDefault();e.stopPropagation();zone.classList.remove("drag");};
+      const drop=(e)=>{
+        e.preventDefault();e.stopPropagation();zone.classList.remove("drag");
+        const files=e.dataTransfer&&e.dataTransfer.files;
+        if(!files||!files.length)return;
+        const f=files[0];
+        if(!(f.type||"").startsWith("image/")){setErr("拖拽文件不是图片。");return;}
+        droppedFile=f;
+        zone.textContent=`已拖拽: ${f.name}（点击“上传并推理”开始）`;
+      };
+      zone.addEventListener("dragenter",enter);
+      zone.addEventListener("dragover",over);
+      zone.addEventListener("dragleave",leave);
+      zone.addEventListener("drop",drop);
+      zone.addEventListener("click",()=>fi.click());
+      fi.addEventListener("change",()=>{
+        const f=fi.files&&fi.files[0];
+        if(f){droppedFile=f;zone.textContent=`已选择: ${f.name}（点击“上传并推理”开始）`;}
+      });
+    }
+    function pickDeviceValue(){const d=($("device").value||"auto").trim().toLowerCase();if(!d||d==="auto")return null;return d;}
+    function setDeviceValue(v){const x=String(v||"").trim().toLowerCase();if(!x||x==="auto"){$("device").value="auto";return;}if(x==="cpu"){$("device").value="cpu";return;}if(x==="gpu"||x==="cuda"||x.startsWith("cuda")){$("device").value="gpu";return;}$("device").value="auto";}
+    function batchReq(){return{config_path:$("config-path").value.trim()||null,checkpoint:$("checkpoint").value.trim()||null,input_dir:$("input-dir").value.trim()||null,output_dir:$("output-dir").value.trim()||null,device:pickDeviceValue(),batch_size:Number($("batch-size").value||8),special_threshold:Number($("special-threshold").value||0.5),organize:$("organize").value||"auto"};}
+    function renderStatus(data){const t=data.task;if(!t){$("status").textContent="当前无推理任务。";$("btn-stop").disabled=true;$("btn-start").disabled=false;lastRunning=false;return false;}const p=t.params||{};$("status").textContent=[`task_id: ${t.task_id}`,`status: ${t.status}`,`pid: ${t.pid||"-"}`,`created: ${fmtTime(t.created_at)}`,`started: ${fmtTime(t.started_at)}`,`finished: ${fmtTime(t.finished_at)}`,`return_code: ${t.return_code==null?"-":t.return_code}`,"",`config: ${t.config_path||"-"}`,`checkpoint: ${p.checkpoint||"-"}`,`input_dir: ${p.input_dir||"-"}`,`output_dir: ${p.output_dir||"-"}`,`device: ${p.device||"(auto)"}`,`batch_size: ${p.batch_size||"-"}`,`special_threshold: ${p.special_threshold||"-"}`,`summary: ${t.summary_path||"-"}`].join("\n");const running=!!data.running;$("btn-stop").disabled=!running;$("btn-start").disabled=running;const done=lastRunning===true&&running===false;lastRunning=running;return done;}
+    async function refreshStatus(){try{const d=await api("/api/infer/status");return renderStatus(d);}catch(e){setErr(`读取状态失败: ${e.message}`);return false;}}
+    async function refreshLogs(){try{const d=await api(`/api/infer/logs?since_id=${lastLogId}&limit=400`);const items=d.items||[];if(items.length>0){const b=$("logs");for(const x of items)b.textContent+=`[${x.ts}] ${x.line}\n`;b.scrollTop=b.scrollHeight;lastLogId=d.last_id||lastLogId;}}catch(e){setErr(`读取日志失败: ${e.message}`);}}
+    async function startInfer(){setErr("");try{await api("/api/infer/start","POST",batchReq());$("logs").textContent="";lastLogId=0;await refreshStatus();}catch(e){setErr(`启动失败: ${e.message}`);}}
+    async function stopInfer(){setErr("");try{await api("/api/infer/stop","POST",{});await refreshStatus();}catch(e){setErr(`停止失败: ${e.message}`);}}
+    function syncOut(){$("result-output-dir").value=$("output-dir").value.trim();}
+    function resultQuery(page){const q=new URLSearchParams({page:String(page||rs.page||1),page_size:String(Number($("result-page-size").value||24)),q:$("result-q").value.trim()||"",special_filter:$("result-special-filter").value||"all",sort_by:$("result-sort-by").value||"",sort_order:$("result-sort-order").value||"desc"});const od=$("result-output-dir").value.trim();if(od)q.set("output_dir",od);return q.toString();}
+    function headRows(item){
+      const root=$("detail-heads");root.innerHTML="";
+      const dims=[["aesthetic","美学"],["composition","构图"],["color","色彩"],["sexual","色情"]];
+      for(const [k,n] of dims){
+        const v=Number(item[k]);const pct=Number.isFinite(v)?Math.max(0,Math.min(100,v/5*100)):0;
+        const row=document.createElement("div");row.className="hrow";
+        row.innerHTML=`<div>${n}</div><div class="bar"><div class="fill" style="width:${pct}%"></div></div><div>${Number.isFinite(v)?v.toFixed(3):"-"} /5</div>`;
+        root.appendChild(row);
+      }
+      const p=Number(item.in_domain_prob);
+      const pp=Number.isFinite(p)?Math.max(0,Math.min(100,p*100)):0;
+      const pred=Number(item.special_tag||0)===1?"特殊样本":"目标域";
+      const thRaw=item.special_threshold??item.meta?.special_threshold??rs.specialThreshold??Number($("special-threshold").value||0.5);
+      const th=Number(thRaw);
+      const thPct=Number.isFinite(th)?Math.max(0,Math.min(100,th*100)):50;
+      const fillCls=(Number(item.special_tag||0)===1)?"fill warn":"fill blue";
+      const row=document.createElement("div");row.className="hrow";
+      row.innerHTML=`<div>in_domain</div><div class="bar th"><div class="${fillCls}" style="width:${pp}%"></div><div class="thline" style="left:${thPct}%"></div><div class="thlab" style="left:${thPct}%">阈值 ${Number.isFinite(th)?th.toFixed(2):"-"}</div></div><div>${Number.isFinite(p)?p.toFixed(4):"-"} ${pred}</div>`;
+      root.appendChild(row);
+      const m=document.createElement("div");m.className="muted";
+      m.textContent=`判定规则: in_domain_prob >= 阈值 => 目标域；否则特殊样本。当前 special_tag=${item.special_tag??"-"}，reason=${item.special_reason||"-"}`;
+      root.appendChild(m);
+    }
+    function renderDetail(item){
+      if(!item)return;
+      $("detail-image").src=item.image_url||"";
+      const th=item.special_threshold??item.meta?.special_threshold??rs.specialThreshold??Number($("special-threshold").value||0.5);
+      $("detail-meta").textContent=[`relative_path: ${item.relative_path||"-"}`,`image_path: ${item.image_path||"-"}`,`special_tag: ${item.special_tag??"-"}`,`special_reason: ${item.special_reason||"-"}`,`special_threshold: ${th??"-"}`,`error: ${item.error||"-"}`].join("\n");
+      headRows(item);
+    }
+    function renderRows(items){const body=$("result-tbody");body.innerHTML="";for(const it of(items||[])){const key=it.image_path||it.relative_path||"";const tr=document.createElement("tr");if(rs.selected&&rs.selected===key)tr.className="sel";tr.innerHTML=`<td><img class="thumb" src="${esc(it.image_url||"")}" alt="thumb"></td><td>${esc(it.relative_path||it.image_path||"-")}</td><td>${fmtNum(it.aesthetic)}</td><td>${fmtNum(it.composition)}</td><td>${fmtNum(it.color)}</td><td>${fmtNum(it.sexual)}</td><td>${fmtNum(it.in_domain_prob,4)}</td><td>${Number(it.special_tag||0)}</td><td>${esc(it.error||"")}</td>`;tr.onclick=()=>{rs.selected=key;renderRows(items);renderDetail(it);};body.appendChild(tr);}}
+    async function refreshResults(page=1,resetSel=false){
+      setErr("");
+      try{
+        if(resetSel)rs.selected="";
+        rs.page=Math.max(1,Number(page||1));
+        const d=await api(`/api/infer/results?${resultQuery(rs.page)}`);
+        rs.page=Number(d.page||1);rs.pages=Number(d.pages||0);rs.total=Number(d.total||0);
+        rs.specialThreshold=(d.special_threshold==null)?rs.specialThreshold:Number(d.special_threshold);
+        $("result-page-info").textContent=`页 ${rs.page}/${rs.pages}，筛选后 ${rs.total}`;
+        $("result-summary").textContent=[`output_dir: ${d.output_dir||"-"}`,`prediction_file: ${d.prediction_file||"-"}`,`records_count: ${d.records_count||0}`,`special_count: ${d.special_count||0}`,`special_threshold: ${d.special_threshold??"-"}`,`summary.total: ${d.summary?.total_records??"-"}`,`summary.inferred: ${d.summary?.inferred_records??"-"}`,`summary.special: ${d.summary?.special_records??"-"}`,`summary.has_cls_head: ${d.summary?.has_cls_head??"-"}`].join("\n");
+        renderRows(d.items||[]);
+        if((d.items||[]).length>0){
+          const sel=(d.items||[]).find(x=>(x.image_path||x.relative_path||"")===rs.selected)||d.items[0];
+          rs.selected=sel.image_path||sel.relative_path||"";
+          renderDetail(sel);
+        }
+      }catch(e){setErr(`加载结果失败: ${e.message}`);}
+    }
+    async function exportResultsCsv(){
+      setErr("");
+      try{
+        const qs=resultQuery(1);
+        const resp=await fetch(`/api/infer/results/export?${qs}`);
+        if(!resp.ok){
+          const err=await resp.json().catch(()=>({}));
+          throw new Error(err.detail||`${resp.status} ${resp.statusText}`);
+        }
+        const blob=await resp.blob();
+        const cd=resp.headers.get("Content-Disposition")||"";
+        let fname="infer_results_filtered.csv";
+        const m=cd.match(/filename=\"?([^\";]+)\"?/i);
+        if(m&&m[1])fname=m[1];
+        const url=URL.createObjectURL(blob);
+        const a=document.createElement("a");
+        a.href=url;a.download=fname;document.body.appendChild(a);a.click();a.remove();
+        URL.revokeObjectURL(url);
+      }catch(e){setErr(`导出失败: ${e.message}`);}
+    }
+    function singleOpts(){const ck1=$("single-checkpoint")?$("single-checkpoint").value.trim():"";const ck2=$("checkpoint").value.trim();return{config_path:$("config-path").value.trim()||null,checkpoint:ck1||ck2||null,device:pickDeviceValue(),special_threshold:Number($("special-threshold").value||0.5)};}
+    async function singleByPath(){setErr("");try{const path=$("single-image-path").value.trim();if(!path){const msg="请先输入单图路径。";setErr(msg);$("single-meta").textContent=localizeText(msg);return;}switchView("single");const d=await api("/api/single/infer/path","POST",{image_path:path,...singleOpts()});$("single-meta").textContent=[`路径推理完成`,`image_path: ${d.image_path||"-"}`,`special_tag: ${d.special_tag}`,`special_reason: ${d.special_reason||"-"}`,`checkpoint: ${d.meta?.checkpoint||"-"}`,`device: ${d.meta?.device||"-"}`,`threshold: ${d.meta?.special_threshold??"-"}`,`has_cls_head: ${d.meta?.has_cls_head??"-"}`].join("\n");renderDetail(d);pushSingleHistory(d,"path");}catch(e){const msg=`单图路径推理失败: ${e.message}`;setErr(msg);$("single-meta").textContent=localizeText(msg);}}
+    async function singleByUpload(){setErr("");try{const fromPicker=$("single-file").files&&$("single-file").files[0];const f=droppedFile||fromPicker;if(!f){const msg="请先选择或拖拽图片。";setErr(msg);$("single-meta").textContent=localizeText(msg);return;}switchView("single");const o=singleOpts();const form=new FormData();form.append("file",f);if(o.config_path)form.append("config_path",o.config_path);if(o.checkpoint)form.append("checkpoint",o.checkpoint);if(o.device)form.append("device",o.device);form.append("special_threshold",String(o.special_threshold));const d=await api("/api/single/infer/upload","POST",form,true);$("single-meta").textContent=[`上传推理完成`,`upload: ${f.name}`,`saved: ${d.image_path||"-"}`,`special_tag: ${d.special_tag}`,`special_reason: ${d.special_reason||"-"}`,`checkpoint: ${d.meta?.checkpoint||"-"}`,`device: ${d.meta?.device||"-"}`,`threshold: ${d.meta?.special_threshold??"-"}`,`has_cls_head: ${d.meta?.has_cls_head??"-"}`].join("\n");renderDetail(d);pushSingleHistory(d,"upload");$("single-dropzone").textContent="拖拽图片到这里上传（也可继续使用文件选择）";droppedFile=null;$("single-file").value="";}catch(e){const msg=`上传推理失败: ${e.message}`;setErr(msg);$("single-meta").textContent=localizeText(msg);}}
+    async function loadDefaults(){try{const c=await api("/api/config");const w=c.webui||{},i=c.inference||{};if(w.default_config!=null)$("config-path").value=String(w.default_config);if(i.checkpoint!=null){$("checkpoint").value=String(i.checkpoint);if($("single-checkpoint"))$("single-checkpoint").value=String(i.checkpoint);}if(i.input_dir!=null)$("input-dir").value=String(i.input_dir);if(i.output_dir!=null){$("output-dir").value=String(i.output_dir);$("result-output-dir").value=String(i.output_dir);}setDeviceValue(i.device);if(i.batch_size!=null)$("batch-size").value=Number(i.batch_size||8);if(i.special_threshold!=null)$("special-threshold").value=Number(i.special_threshold||0.5);$("organize").value=(i.organize||{}).enabled===false?"off":"auto";}catch(e){setErr(`读取默认配置失败: ${e.message}`);}}
+    async function tick(){const done=await refreshStatus();await refreshLogs();if(done){syncOut();await refreshResults(1,true);}}
+    $("theme-toggle").onclick=toggleTheme; $("lang-toggle").onclick=toggleLanguage; $("tab-batch").onclick=()=>switchView("batch"); $("tab-single").onclick=()=>switchView("single");
+    $("btn-start").onclick=()=>{switchView("batch");startInfer();}; $("btn-stop").onclick=stopInfer; $("btn-refresh").onclick=tick; $("btn-use-output").onclick=()=>{switchView("batch");syncOut();refreshResults(1,true)};
+    $("btn-result-refresh").onclick=()=>refreshResults(1,true); $("btn-result-export").onclick=exportResultsCsv; $("btn-result-prev").onclick=()=>refreshResults(Math.max(1,rs.page-1)); $("btn-result-next").onclick=()=>refreshResults(rs.page+1);
+    $("result-page-size").onchange=()=>refreshResults(1,true); $("result-q").onchange=()=>refreshResults(1,true); $("result-special-filter").onchange=()=>refreshResults(1,true); $("result-sort-by").onchange=()=>refreshResults(1,true); $("result-sort-order").onchange=()=>refreshResults(1,true);
+    $("btn-single-path").onclick=singleByPath; $("btn-single-upload").onclick=singleByUpload;
+    $("btn-browse-checkpoint").onclick=async()=>{const p=await pickByDialog("checkpoint",$("checkpoint").value);if(p){$("checkpoint").value=p;if(!$("single-checkpoint").value.trim())$("single-checkpoint").value=p;}};
+    $("btn-browse-input-dir").onclick=async()=>{const p=await pickByDialog("input_dir",$("input-dir").value);if(p)$("input-dir").value=p;};
+    $("btn-browse-output-dir").onclick=async()=>{const p=await pickByDialog("output_dir",$("output-dir").value);if(p){$("output-dir").value=p;$("result-output-dir").value=p;}};
+    $("btn-browse-single-checkpoint").onclick=async()=>{const p=await pickByDialog("checkpoint",$("single-checkpoint").value||$("checkpoint").value);if(p){$("single-checkpoint").value=p;$("checkpoint").value=p;}};
+    $("btn-browse-single-image").onclick=async()=>{const p=await pickByDialog("image",$("single-image-path").value);if(p)$("single-image-path").value=p;};
+    $("checkpoint").onchange=()=>{const s=$("single-checkpoint");if(s&&!s.value.trim())s.value=$("checkpoint").value;};
+    $("single-checkpoint").onchange=()=>{const v=$("single-checkpoint").value.trim();if(v)$("checkpoint").value=v;};
+    $("btn-single-history-refresh").onclick=renderSingleHistory; $("btn-single-history-clear").onclick=()=>{singleHistory=[];saveHistory();renderSingleHistory();}; $("single-history-limit").onchange=()=>{singleHistory=singleHistory.slice(0,historyLimit());saveHistory();renderSingleHistory();};
+    (async function init(){initLanguage();initTheme();startI18nObserver();bindDropzone();loadHistory();renderSingleHistory();switchView("batch");await loadDefaults();await tick();await refreshResults(1,true); if(pollTimer)clearInterval(pollTimer); pollTimer=setInterval(tick,2000);})();
+  </script>
+</body>
+</html>

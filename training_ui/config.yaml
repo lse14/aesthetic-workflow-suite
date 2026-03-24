@@ -1,0 +1,23 @@
+server:
+  host: 127.0.0.1
+  port: 9300
+training:
+  default_config: configs/fusion_1k_baseline.yaml
+  quick_defaults:
+    annotations: ../labeling_ui/dataset/labels.db
+    image_root: ../labeling_ui/dataset/images
+    train_split: ''
+    val_split: ''
+    val_ratio: 0.15
+    epochs: 30
+    batch_size: 16
+    lr: 0.0002
+    device: cuda
+    output_dir: ./outputs
+    model_name: 5kdataset
+    model_format: safetensors
+    eval_split: ''
+    eval_batch_size: null
+    target_dims:
+    - aesthetic
+    skip_eval: false

@@ -1,0 +1,27 @@
+server:
+  host: 127.0.0.1
+  port: 9400
+
+webui:
+  default_config: config.yaml
+
+inference:
+  checkpoint: ""
+  input_dir: data/infer_images
+  output_dir: outputs/infer_run
+  recursive: true
+  image_extensions: [".jpg", ".jpeg", ".png", ".webp", ".bmp"]
+  batch_size: 8
+  device: null
+  special_threshold: 0.5
+  save_jsonl: true
+  save_csv: true
+  jsonl_name: predictions.jsonl
+  csv_name: predictions.csv
+  organize:
+    enabled: true
+    root_dir: outputs/infer_run/organized
+    mode: copy
+    include_special_group: true
+    dimensions: [aesthetic, composition, color, sexual]
+    bucket_strategy: nearest_int
