@@ -6,9 +6,11 @@
 2. 训练（`training_ui`）
 3. 批量推理与单图推理（`infer_ui`）
 4. 便携批处理与分拣（`batch`）
-5. 模型发布目录（`models`）
 
-核心目标是把“数据生产 -> 模型训练 -> 推理落地”串成一条可持续迭代的链路。
+models文件夹训练集图像配比
+- `0.2` Danbooru 图像
+- `0.4` e621 图像
+- `0.4` 本地图像
 
 ### 仓库结构
 
@@ -23,22 +25,6 @@ apps/
   requirements.txt
   .gitignore
 ```
-
-### 模型目录与训练配比
-
-已新增两个模型子目录，便于你直接放训练好的 checkpoint：
-
-```text
-models/
-  model_a/
-  model_b/
-```
-
-标准训练数据配比说明（按你的要求固定写明）：
-
-- `0.2` Danbooru 图像
-- `0.4` e621 图像
-- `0.4` 本地图像
 
 ### 模型架构
 
@@ -136,9 +122,7 @@ This repository provides an end-to-end aesthetic scoring workflow:
 2. Training (`training_ui`)
 3. Batch + single-image inference (`infer_ui`)
 4. Portable batch processing and sorting (`batch`)
-5. Published model slots (`models`)
 
-The goal is to keep the full pipeline reproducible and practical for iterative model development.
 
 ### Repository Layout
 
@@ -153,22 +137,6 @@ apps/
   requirements.txt
   .gitignore
 ```
-
-### Model Slots and Training Mix
-
-Two model folders are prepared so you can drop your trained checkpoints directly:
-
-```text
-models/
-  model_a/
-  model_b/
-```
-
-Standard training data mix (explicitly documented):
-
-- `0.2` Danbooru images
-- `0.4` e621 images
-- `0.4` Local images
 
 ### Model Architecture
 
