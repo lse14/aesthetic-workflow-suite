@@ -1,0 +1,20 @@
+inference:
+  checkpoint: ""
+  input_dir: ""
+  output_dir: ./outputs/infer_run
+  recursive: true
+  image_extensions: [".jpg", ".jpeg", ".png", ".webp", ".bmp"]
+  batch_size: 8
+  device: cuda
+  special_threshold: 0.5
+  save_jsonl: true
+  save_csv: true
+  jsonl_name: predictions.jsonl
+  csv_name: predictions.csv
+  organize:
+    enabled: true
+    root_dir: ./outputs/infer_run/organized
+    mode: copy
+    include_special_group: false
+    dimensions: [aesthetic]
+    bucket_strategy: x2_floor_10

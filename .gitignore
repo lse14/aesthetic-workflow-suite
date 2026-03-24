@@ -39,8 +39,13 @@ infer_ui/outputs/
 infer_ui/dist/
 infer_ui/_models/
 model/
-batch/
 eval_ui/
+batch/.venv/
+batch/outputs/
+batch/dist/
+batch/_models/
+batch/__pycache__/
+batch/runtime/__pycache__/
 
 # Model artifacts
 *.pt
