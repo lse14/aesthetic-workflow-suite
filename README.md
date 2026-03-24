@@ -102,9 +102,24 @@ py -3 run.py --config config.yaml
 
 ### 致谢
 
-- `FastAPI`, `Uvicorn` 提供 Web 服务基础
-- `PyTorch`, `Transformers`, `open_clip`, `timm`, `safetensors` 提供模型与推理能力
-- 感谢开源社区以及数据标注、训练、验证参与者
+- Web 与服务框架：`FastAPI`, `Uvicorn`
+  - FastAPI: https://github.com/fastapi/fastapi
+  - Uvicorn: https://github.com/encode/uvicorn
+- 深度学习与模型生态：`PyTorch`, `Transformers`, `OpenCLIP`, `timm`, `safetensors`
+  - PyTorch: https://pytorch.org/
+  - Transformers: https://github.com/huggingface/transformers
+  - OpenCLIP: https://github.com/mlfoundations/open_clip
+  - timm: https://github.com/huggingface/pytorch-image-models
+  - safetensors: https://github.com/huggingface/safetensors
+- 相关模型来源（按本项目配置/流程使用）
+  - JTP-3: https://huggingface.co/RedRocket/JTP-3
+  - Waifu Scorer v3: https://huggingface.co/Eugeoter/waifu-scorer-v3
+
+许可与使用说明：
+
+- 本仓库代码仅覆盖本项目自身实现；第三方模型与依赖库遵循其各自许可证与使用条款。
+- 使用、分发、商用前请自行核验对应模型与依赖的 license / ToS / 权利边界。
+- 如上游项目要求引用（citation/attribution），请按其官方说明进行署名。
 
 ---
 
@@ -208,6 +223,22 @@ Parts of this project were iterated with **OpenAI Codex** in a vibe-coding workf
 
 ### Acknowledgements
 
-- `FastAPI` and `Uvicorn` for web serving
-- `PyTorch`, `Transformers`, `open_clip`, `timm`, and `safetensors` for model and inference stack
-- Thanks to contributors involved in labeling, training, and evaluation
+- Web/runtime foundations: `FastAPI`, `Uvicorn`
+  - FastAPI: https://github.com/fastapi/fastapi
+  - Uvicorn: https://github.com/encode/uvicorn
+- ML/model ecosystem: `PyTorch`, `Transformers`, `OpenCLIP`, `timm`, `safetensors`
+  - PyTorch: https://pytorch.org/
+  - Transformers: https://github.com/huggingface/transformers
+  - OpenCLIP: https://github.com/mlfoundations/open_clip
+  - timm: https://github.com/huggingface/pytorch-image-models
+  - safetensors: https://github.com/huggingface/safetensors
+- Model sources used by this workflow
+  - JTP-3: https://huggingface.co/RedRocket/JTP-3
+  - Waifu Scorer v3: https://huggingface.co/Eugeoter/waifu-scorer-v3
+
+License and usage notice:
+
+- This repository license applies only to this project's own code.
+- Third-party libraries/models keep their own licenses and terms.
+- Please verify license/ToS/commercial-use constraints before redistribution or production use.
+- If upstream projects require citation/attribution, follow their official instructions.
