@@ -1,44 +1,52 @@
 # Aesthetic Workflow Suite
 
-End-to-end aesthetic scoring workflow for real projects:  
-**Labeling -> Training -> Batch Inference -> Single-Image Inference -> Batch Post-Process**
-
-美学打分全流程工具链（可直接落地使用）：  
-**标注 -> 训练 -> 批处理推理 -> 单图推理 -> 批量后处理**
-
 ---
 
-## Why This Repo / 项目价值
+## 中文说明
 
-- One repo, full workflow  
-  一个仓库覆盖完整流程，不用拼接多套工具
-- Web UI for each stage  
-  每个阶段都有独立 Web UI
-- Practical inference runtime  
-  推理支持 CPU/GPU 选择，GPU 模式可自动准备 torch 运行时
-- Safe-by-default publishing setup  
-  默认忽略数据集、模型和输出，适合公开协作
+### 项目简介
 
----
+这是一个面向真实生产流程的美学评分工作流仓库，覆盖：
 
-## Components / 组件
+1. 标注（`labeling_ui`）
+2. 训练（`training_ui`）
+3. 批量推理与单图推理（`infer_ui`）
+4. 便携批处理与分拣（`batch`）
+
+核心目标是把“数据生产 -> 模型训练 -> 推理落地”串成一条可持续迭代的链路。
+
+### 仓库结构
 
 ```text
 apps/
-  labeling_ui/      # 数据标注 UI
+  labeling_ui/      # 标注 UI
   training_ui/      # 训练 UI
   infer_ui/         # 批量推理 + 单图推理 UI
-  batch/            # 批处理脚本（便携推理/结果整理）
+  batch/            # 便携批处理脚本（推理/分拣）
   README.md
   requirements.txt
   .gitignore
 ```
 
----
+### 模型架构
 
-## Quick Start (60s) / 60 秒启动
+训练与推理使用融合多任务头，结构如下：
 
-Python 3.10+ (Windows recommended).
+1. 特征提取器 A：`JTP-3` 视觉特征
+2. 特征提取器 B：`Waifu/CLIP` 视觉特征（可带 waifu 分支信息）
+3. 特征融合：`concat([feat_jtp3, feat_waifu], dim=-1)`
+4. 任务头：共享 trunk + 多头输出
+   1. 回归头（4 个）：`aesthetic`、`composition`、`color`、`sexual`
+   2. 分类头（1 个）：`in_domain`（用于 special 样本判定）
+
+推理时：
+
+- 回归输出映射到 `1~5` 分区间
+- 分类头通过阈值 `special_threshold` 计算 `special_tag`
+
+### 快速开始
+
+推荐 Python 3.10+（Windows）。
 
 ```bat
 cd /d d:\vscode\vibecode\apps
@@ -48,7 +56,7 @@ pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
-Start each UI:
+启动服务：
 
 ```bat
 cd /d d:\vscode\vibecode\apps\labeling_ui
@@ -65,49 +73,141 @@ cd /d d:\vscode\vibecode\apps\infer_ui
 py -3 run.py --config config.yaml
 ```
 
-Default ports / 默认端口:
+默认端口：
+
 - `labeling_ui`: `9100`
 - `training_ui`: `9300`
 - `infer_ui`: `9400`
 
----
+### 推理设备说明
 
-## Typical Workflow / 典型流程
+- `auto`：自动选择
+- `cpu`：强制 CPU
+- `gpu`：强制 GPU，自动检测 CUDA 与 torch；缺失时自动安装 torch 运行时
 
-1. Label data in `labeling_ui` and generate annotation DB  
-   在 `labeling_ui` 完成标注，生成标注库
-2. Train model in `training_ui`, export checkpoint (`.safetensors` recommended)  
-   在 `training_ui` 训练模型，导出 checkpoint（推荐 `.safetensors`）
-3. Run batch inference in `infer_ui`  
-   在 `infer_ui` 进行批处理推理
-4. Use single-image page for quick inspection (path/upload)  
-   用单图页面进行路径/上传推理与快速检查
-5. (Optional) Use `batch/` scripts for portable inference and score-based image sorting  
-   （可选）使用 `batch/` 脚本做便携推理与按分数整理图片
+### 安全与隐私
 
----
+仓库默认忽略：
 
-## Inference Device Modes / 推理设备模式
+- 标注数据集
+- 模型权重
+- 输出目录
+- 缓存和虚拟环境
 
-- `auto`: automatic selection / 自动选择
-- `cpu`: force CPU / 强制 CPU
-- `gpu`: require GPU, check CUDA, auto-install torch runtime when needed  
-  强制 GPU，检测 CUDA，必要时自动安装 torch 运行时
+请将私密信息（token/key）放入环境变量，不要写入配置文件。
 
----
+### 开发方式
 
-## Security & Privacy / 安全与隐私
+本项目部分功能迭代采用 **OpenAI Codex** 进行 vibe coding 协作开发（需求驱动、小步快改、快速回归验证）。
 
-- Dataset, model weights, outputs, caches are ignored by default  
-  数据集、模型权重、输出目录、缓存默认忽略
-- Keep private keys/tokens in environment variables  
-  私有密钥和 token 请放环境变量，不要写入配置文件
-- Use Git LFS if you decide to version large model files  
-  如需管理大模型文件，请使用 Git LFS
+### 致谢
+
+- `FastAPI`, `Uvicorn` 提供 Web 服务基础
+- `PyTorch`, `Transformers`, `open_clip`, `timm`, `safetensors` 提供模型与推理能力
+- 感谢开源社区以及数据标注、训练、验证参与者
 
 ---
 
-## License
+## English
 
-Add your preferred license before making the repository public for broader reuse.  
-如果要更广泛开源复用，建议在公开前补充许可证。
+### Overview
+
+This repository provides an end-to-end aesthetic scoring workflow:
+
+1. Labeling (`labeling_ui`)
+2. Training (`training_ui`)
+3. Batch + single-image inference (`infer_ui`)
+4. Portable batch processing and sorting (`batch`)
+
+The goal is to keep the full pipeline reproducible and practical for iterative model development.
+
+### Repository Layout
+
+```text
+apps/
+  labeling_ui/      # Labeling UI
+  training_ui/      # Training UI
+  infer_ui/         # Batch + single-image inference UI
+  batch/            # Portable batch scripts (infer/sort)
+  README.md
+  requirements.txt
+  .gitignore
+```
+
+### Model Architecture
+
+The training/inference stack uses a fused multi-task head:
+
+1. Feature extractor A: `JTP-3` visual features
+2. Feature extractor B: `Waifu/CLIP` visual features (optionally with waifu branch info)
+3. Fusion: `concat([feat_jtp3, feat_waifu], dim=-1)`
+4. Shared trunk + multi-head outputs:
+   1. Four regression heads: `aesthetic`, `composition`, `color`, `sexual`
+   2. One classification head: `in_domain` (used for special-sample tagging)
+
+At inference time:
+
+- Regression outputs are mapped to `1~5`
+- Classification probability + `special_threshold` determines `special_tag`
+
+### Quick Start
+
+Python 3.10+ (Windows recommended).
+
+```bat
+cd /d d:\vscode\vibecode\apps
+py -3 -m venv .venv
+.venv\Scripts\activate
+pip install --upgrade pip
+pip install -r requirements.txt
+```
+
+Start services:
+
+```bat
+cd /d d:\vscode\vibecode\apps\labeling_ui
+py -3 run.py --config config.yaml
+```
+
+```bat
+cd /d d:\vscode\vibecode\apps\training_ui
+py -3 run.py --config config.yaml
+```
+
+```bat
+cd /d d:\vscode\vibecode\apps\infer_ui
+py -3 run.py --config config.yaml
+```
+
+Default ports:
+
+- `labeling_ui`: `9100`
+- `training_ui`: `9300`
+- `infer_ui`: `9400`
+
+### Inference Device Modes
+
+- `auto`: automatic selection
+- `cpu`: force CPU
+- `gpu`: force GPU, auto-check CUDA/torch, auto-install torch runtime when missing
+
+### Security & Privacy
+
+By default, this repo ignores:
+
+- datasets
+- model weights
+- runtime outputs
+- caches and virtual environments
+
+Keep private credentials in environment variables. Do not hardcode keys/tokens in config files.
+
+### Development Note
+
+Parts of this project were iterated with **OpenAI Codex** in a vibe-coding workflow (requirement-driven, small patches, quick validation loops).
+
+### Acknowledgements
+
+- `FastAPI` and `Uvicorn` for web serving
+- `PyTorch`, `Transformers`, `open_clip`, `timm`, and `safetensors` for model and inference stack
+- Thanks to contributors involved in labeling, training, and evaluation
