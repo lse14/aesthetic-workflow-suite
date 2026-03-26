@@ -93,6 +93,7 @@ py -3 run.py --config config.yaml
 3. 系统 Python（回退到原有 `.venv` 方案）
 
 也就是说，你可以把可携带 Python Runtime 放到 `runtime/python/`，用户无需先安装 Python。
+如果前两个路径都不存在，启动脚本会自动尝试下载并解压 embeddable Python 到 `runtime/python/`，然后继续安装依赖并启动。
 
 ### 推理设备说明
 
@@ -222,6 +223,7 @@ Resolution order:
 3. System Python (fallback to existing `.venv` flow)
 
 So you can ship a portable Python runtime in `runtime/python/` and run without preinstalled Python.
+If the embedded runtime is missing, launchers will attempt to auto-download and extract embeddable Python into `runtime/python/` and continue.
 
 ### Inference Device Modes
 

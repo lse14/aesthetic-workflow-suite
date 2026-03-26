@@ -52,6 +52,17 @@ if exist "%EMBED_PY%" (
   echo [portable] using embedded runtime: %RUN_PY%
   goto :install_deps
 )
+set "EMBED_HELPER=%CD%\..\scripts\ensure_embedded_python.bat"
+if exist "%EMBED_HELPER%" (
+  call "%EMBED_HELPER%" "%CD%\..\runtime\python"
+  if not errorlevel 1 if defined EMBED_PYTHON_EXE (
+    set "USE_EMBEDDED=1"
+    set "PY_CMD=%EMBED_PYTHON_EXE%"
+    set "RUN_PY=%EMBED_PYTHON_EXE%"
+    echo [portable] using embedded runtime: %RUN_PY%
+    goto :install_deps
+  )
+)
 
 if exist ".venv\Scripts\python.exe" (
   set "PY_CMD=.venv\Scripts\python.exe"

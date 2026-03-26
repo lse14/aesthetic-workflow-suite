@@ -30,6 +30,15 @@ if exist "%EMBED_PY%" (
   set "PY_CMD=%EMBED_PY%"
   goto :python_ready
 )
+set "EMBED_HELPER=%APP_DIR%..\scripts\ensure_embedded_python.bat"
+if exist "%EMBED_HELPER%" (
+  call "%EMBED_HELPER%" "%APP_DIR%..\runtime\python"
+  if not errorlevel 1 if defined EMBED_PYTHON_EXE (
+    set "USE_EMBEDDED=1"
+    set "PY_CMD=%EMBED_PYTHON_EXE%"
+    goto :python_ready
+  )
+)
 
 echo [training_ui 1/4] Checking system Python...
 where py >nul 2>nul
