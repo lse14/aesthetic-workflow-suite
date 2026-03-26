@@ -3,6 +3,8 @@ setlocal EnableExtensions
 cd /d "%~dp0"
 
 set "PY_CMD="
+set "RUN_PY="
+set "USE_EMBEDDED=0"
 set "FAIL_REASON="
 if not defined FUSION_AUTO_FIX_CUDA_TORCH set "FUSION_AUTO_FIX_CUDA_TORCH=1"
 set "TQDM_DISABLE=0"
@@ -29,8 +31,26 @@ echo [infer_ui] JTP3 model id: %FUSION_JTP3_MODEL_ID%
 echo [infer_ui] JTP3 fallback id: %FUSION_JTP3_FALLBACK_MODEL_ID%
 echo [infer_ui] waifu-head path: %FUSION_WAIFU_V3_HEAD_PATH%
 
+set "EMBED_PY=%CD%\runtime\python\python.exe"
+if exist "%EMBED_PY%" (
+  set "USE_EMBEDDED=1"
+  set "PY_CMD=%EMBED_PY%"
+  set "RUN_PY=%EMBED_PY%"
+  echo [infer_ui] using embedded runtime: %RUN_PY%
+  goto :install_deps
+)
+set "EMBED_PY=%CD%\..\runtime\python\python.exe"
+if exist "%EMBED_PY%" (
+  set "USE_EMBEDDED=1"
+  set "PY_CMD=%EMBED_PY%"
+  set "RUN_PY=%EMBED_PY%"
+  echo [infer_ui] using embedded runtime: %RUN_PY%
+  goto :install_deps
+)
+
 if exist ".venv\Scripts\python.exe" (
   set "PY_CMD=.venv\Scripts\python.exe"
+  set "RUN_PY=.venv\Scripts\python.exe"
   goto :install_deps
 )
 
@@ -53,6 +73,7 @@ if errorlevel 1 (
   goto :fail
 )
 set "PY_CMD=.venv\Scripts\python.exe"
+set "RUN_PY=.venv\Scripts\python.exe"
 
 :install_deps
 echo [infer_ui] install deps ...
@@ -69,12 +90,12 @@ if exist ".venv\Lib\site-packages" (
     )
   )
 )
-%PY_CMD% -m pip install --upgrade pip
+%RUN_PY% -m pip install --upgrade pip
 if errorlevel 1 (
   set "FAIL_REASON=pip_upgrade_failed"
   goto :fail
 )
-%PY_CMD% -m pip install -r requirements.txt
+%RUN_PY% -m pip install -r requirements.txt
 if errorlevel 1 (
   set "FAIL_REASON=pip_install_failed"
   goto :fail
@@ -95,7 +116,7 @@ if not "%~1"=="" (
 set "WEBUI_HOST=127.0.0.1"
 set "WEBUI_PORT=9400"
 set "WEBUI_RESOLVE_TMP=%TEMP%\infer_ui_webui_%RANDOM%%RANDOM%.txt"
-%PY_CMD% "scripts\resolve_webui_port.py" --config "config.yaml" > "%WEBUI_RESOLVE_TMP%" 2>nul
+%RUN_PY% "scripts\resolve_webui_port.py" --config "config.yaml" > "%WEBUI_RESOLVE_TMP%" 2>nul
 if exist "%WEBUI_RESOLVE_TMP%" (
   for /f "usebackq tokens=1,2" %%a in ("%WEBUI_RESOLVE_TMP%") do (
     set "WEBUI_HOST=%%a"
@@ -110,7 +131,7 @@ echo.
 echo [infer_ui] start web ui ...
 echo Infer UI: http://%OPEN_HOST%:%WEBUI_PORT%/
 start "" "http://%OPEN_HOST%:%WEBUI_PORT%/"
-%PY_CMD% -X utf8 run_web.py --config "config.yaml" --host %WEBUI_HOST% --port %WEBUI_PORT%
+%RUN_PY% -X utf8 run_web.py --config "config.yaml" --host %WEBUI_HOST% --port %WEBUI_PORT%
 if errorlevel 1 (
   set "FAIL_REASON=run_failed"
   goto :fail
@@ -136,14 +157,15 @@ exit /b 1
 :maybe_fix_cuda_torch
 set "HAS_NVIDIA=0"
 set "TORCH_HAS_CUDA=0"
+set "CUDA_CHECK_PY=%TEMP%\infer_ui_cuda_check_%RANDOM%%RANDOM%.py"
 where nvidia-smi >nul 2>nul
 if not errorlevel 1 set "HAS_NVIDIA=1"
 if "%HAS_NVIDIA%"=="0" goto :cuda_done
 
-> ".venv\\_tmp_cuda_check.py" echo import torch
->> ".venv\\_tmp_cuda_check.py" echo print("1" if torch.cuda.is_available() else "0")
-for /f %%A in ('%PY_CMD% ".venv\\_tmp_cuda_check.py" 2^>nul') do set "TORCH_HAS_CUDA=%%A"
-del /Q ".venv\\_tmp_cuda_check.py" >nul 2>nul
+> "%CUDA_CHECK_PY%" echo import torch
+>> "%CUDA_CHECK_PY%" echo print("1" if torch.cuda.is_available() else "0")
+for /f %%A in ('%RUN_PY% "%CUDA_CHECK_PY%" 2^>nul') do set "TORCH_HAS_CUDA=%%A"
+del /Q "%CUDA_CHECK_PY%" >nul 2>nul
 
 if "%TORCH_HAS_CUDA%"=="1" (
   echo [infer_ui] CUDA torch detected.
@@ -156,15 +178,15 @@ if /I not "%FUSION_AUTO_FIX_CUDA_TORCH%"=="1" (
 )
 
 echo [infer_ui] NVIDIA GPU detected but torch CUDA unavailable. Auto-fixing torch...
-%PY_CMD% -m pip uninstall -y torch torchvision torchaudio >nul 2>nul
-%PY_CMD% -m pip install --index-url https://download.pytorch.org/whl/cu128 torch torchvision torchaudio
+%RUN_PY% -m pip uninstall -y torch torchvision torchaudio >nul 2>nul
+%RUN_PY% -m pip install --index-url https://download.pytorch.org/whl/cu128 torch torchvision torchaudio
 if errorlevel 1 exit /b 1
 
 set "TORCH_HAS_CUDA=0"
-> ".venv\\_tmp_cuda_check.py" echo import torch
->> ".venv\\_tmp_cuda_check.py" echo print("1" if torch.cuda.is_available() else "0")
-for /f %%A in ('%PY_CMD% ".venv\\_tmp_cuda_check.py" 2^>nul') do set "TORCH_HAS_CUDA=%%A"
-del /Q ".venv\\_tmp_cuda_check.py" >nul 2>nul
+> "%CUDA_CHECK_PY%" echo import torch
+>> "%CUDA_CHECK_PY%" echo print("1" if torch.cuda.is_available() else "0")
+for /f %%A in ('%RUN_PY% "%CUDA_CHECK_PY%" 2^>nul') do set "TORCH_HAS_CUDA=%%A"
+del /Q "%CUDA_CHECK_PY%" >nul 2>nul
 if not "%TORCH_HAS_CUDA%"=="1" exit /b 1
 echo [infer_ui] CUDA torch ready.
 

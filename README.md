@@ -77,6 +77,23 @@ py -3 run.py --config config.yaml
 - `training_ui`: `9300`
 - `infer_ui`: `9400`
 
+### 嵌入式运行时（免系统 Python）
+
+四个启动脚本现在都支持优先使用内置 Python：
+
+- `labeling_ui/start.bat`
+- `training_ui/start.bat`
+- `infer_ui/start.bat`
+- `batch/run_portable_infer.bat`
+
+脚本会按顺序查找：
+
+1. `<app>/runtime/python/python.exe`
+2. `../runtime/python/python.exe`
+3. 系统 Python（回退到原有 `.venv` 方案）
+
+也就是说，你可以把可携带 Python Runtime 放到 `runtime/python/`，用户无需先安装 Python。
+
 ### 推理设备说明
 
 - `auto`：自动选择
@@ -188,6 +205,23 @@ Default ports:
 - `labeling_ui`: `9100`
 - `training_ui`: `9300`
 - `infer_ui`: `9400`
+
+### Embedded Runtime (No System Python Required)
+
+All launchers now support embedded Python first:
+
+- `labeling_ui/start.bat`
+- `training_ui/start.bat`
+- `infer_ui/start.bat`
+- `batch/run_portable_infer.bat`
+
+Resolution order:
+
+1. `<app>/runtime/python/python.exe`
+2. `../runtime/python/python.exe`
+3. System Python (fallback to existing `.venv` flow)
+
+So you can ship a portable Python runtime in `runtime/python/` and run without preinstalled Python.
 
 ### Inference Device Modes
 

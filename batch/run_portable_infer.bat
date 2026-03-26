@@ -3,6 +3,8 @@ setlocal EnableExtensions
 cd /d "%~dp0"
 
 set "PY_CMD="
+set "RUN_PY="
+set "USE_EMBEDDED=0"
 set "FAIL_REASON="
 if not defined FUSION_AUTO_FIX_CUDA_TORCH set "FUSION_AUTO_FIX_CUDA_TORCH=1"
 if not defined FUSION_PREFETCH_JTP3 set "FUSION_PREFETCH_JTP3=1"
@@ -34,8 +36,26 @@ echo [portable] waifu-head path: %FUSION_WAIFU_V3_HEAD_PATH%
 echo [portable] Prefetch open-clip: %FUSION_PREFETCH_OPENCLIP%
 echo [portable] Prefetch waifu-head: %FUSION_PREFETCH_WAIFU_HEAD%
 
+set "EMBED_PY=%CD%\runtime\python\python.exe"
+if exist "%EMBED_PY%" (
+  set "USE_EMBEDDED=1"
+  set "PY_CMD=%EMBED_PY%"
+  set "RUN_PY=%EMBED_PY%"
+  echo [portable] using embedded runtime: %RUN_PY%
+  goto :install_deps
+)
+set "EMBED_PY=%CD%\..\runtime\python\python.exe"
+if exist "%EMBED_PY%" (
+  set "USE_EMBEDDED=1"
+  set "PY_CMD=%EMBED_PY%"
+  set "RUN_PY=%EMBED_PY%"
+  echo [portable] using embedded runtime: %RUN_PY%
+  goto :install_deps
+)
+
 if exist ".venv\Scripts\python.exe" (
   set "PY_CMD=.venv\Scripts\python.exe"
+  set "RUN_PY=.venv\Scripts\python.exe"
   goto :install_deps
 )
 
@@ -58,6 +78,7 @@ if errorlevel 1 (
   goto :fail
 )
 set "PY_CMD=.venv\Scripts\python.exe"
+set "RUN_PY=.venv\Scripts\python.exe"
 
 :install_deps
 echo [portable] install deps ...
@@ -74,12 +95,12 @@ if exist ".venv\Lib\site-packages" (
     )
   )
 )
-%PY_CMD% -m pip install --upgrade pip
+%RUN_PY% -m pip install --upgrade pip
 if errorlevel 1 (
   set "FAIL_REASON=pip_upgrade_failed"
   goto :fail
 )
-%PY_CMD% -m pip install -r requirements.txt
+%RUN_PY% -m pip install -r requirements.txt
 if errorlevel 1 (
   set "FAIL_REASON=pip_install_failed"
   goto :fail
@@ -98,10 +119,10 @@ if errorlevel 1 (
 echo.
 if "%~1"=="" (
   echo [portable] start GUI sorter ...
-  %PY_CMD% -X utf8 sort_images_by_score.py --gui
+  %RUN_PY% -X utf8 sort_images_by_score.py --gui
 ) else (
   echo [portable] start sorter with args ...
-  %PY_CMD% -X utf8 sort_images_by_score.py %*
+  %RUN_PY% -X utf8 sort_images_by_score.py %*
 )
 if errorlevel 1 (
   set "FAIL_REASON=run_failed"
@@ -129,14 +150,15 @@ exit /b 1
 :maybe_fix_cuda_torch
 set "HAS_NVIDIA=0"
 set "TORCH_HAS_CUDA=0"
+set "CUDA_CHECK_PY=%TEMP%\batch_cuda_check_%RANDOM%%RANDOM%.py"
 where nvidia-smi >nul 2>nul
 if not errorlevel 1 set "HAS_NVIDIA=1"
 if "%HAS_NVIDIA%"=="0" goto :cuda_done
 
-> ".venv\\_tmp_cuda_check.py" echo import torch
->> ".venv\\_tmp_cuda_check.py" echo print("1" if torch.cuda.is_available() else "0")
-for /f %%A in ('%PY_CMD% ".venv\\_tmp_cuda_check.py" 2^>nul') do set "TORCH_HAS_CUDA=%%A"
-del /Q ".venv\\_tmp_cuda_check.py" >nul 2>nul
+> "%CUDA_CHECK_PY%" echo import torch
+>> "%CUDA_CHECK_PY%" echo print("1" if torch.cuda.is_available() else "0")
+for /f %%A in ('%RUN_PY% "%CUDA_CHECK_PY%" 2^>nul') do set "TORCH_HAS_CUDA=%%A"
+del /Q "%CUDA_CHECK_PY%" >nul 2>nul
 
 if "%TORCH_HAS_CUDA%"=="1" (
   echo [portable] CUDA torch detected.
@@ -149,15 +171,15 @@ if /I not "%FUSION_AUTO_FIX_CUDA_TORCH%"=="1" (
 )
 
 echo [portable] NVIDIA GPU detected but torch CUDA unavailable. Auto-fixing torch...
-%PY_CMD% -m pip uninstall -y torch torchvision torchaudio >nul 2>nul
-%PY_CMD% -m pip install --index-url https://download.pytorch.org/whl/cu128 torch torchvision torchaudio
+%RUN_PY% -m pip uninstall -y torch torchvision torchaudio >nul 2>nul
+%RUN_PY% -m pip install --index-url https://download.pytorch.org/whl/cu128 torch torchvision torchaudio
 if errorlevel 1 exit /b 1
 
 set "TORCH_HAS_CUDA=0"
-> ".venv\\_tmp_cuda_check.py" echo import torch
->> ".venv\\_tmp_cuda_check.py" echo print("1" if torch.cuda.is_available() else "0")
-for /f %%A in ('%PY_CMD% ".venv\\_tmp_cuda_check.py" 2^>nul') do set "TORCH_HAS_CUDA=%%A"
-del /Q ".venv\\_tmp_cuda_check.py" >nul 2>nul
+> "%CUDA_CHECK_PY%" echo import torch
+>> "%CUDA_CHECK_PY%" echo print("1" if torch.cuda.is_available() else "0")
+for /f %%A in ('%RUN_PY% "%CUDA_CHECK_PY%" 2^>nul') do set "TORCH_HAS_CUDA=%%A"
+del /Q "%CUDA_CHECK_PY%" >nul 2>nul
 if not "%TORCH_HAS_CUDA%"=="1" exit /b 1
 echo [portable] CUDA torch ready.
 
@@ -187,6 +209,6 @@ set "PREFETCH_OPENCLIP_ARG="
 if /I not "%FUSION_PREFETCH_OPENCLIP%"=="1" set "PREFETCH_OPENCLIP_ARG=--no-prefetch-openclip"
 set "PREFETCH_WAIFU_ARG="
 if /I not "%FUSION_PREFETCH_WAIFU_HEAD%"=="1" set "PREFETCH_WAIFU_ARG=--no-prefetch-waifu-head"
-%PY_CMD% -X utf8 runtime\prefetch_jtp3.py --root "%FUSION_MODEL_CACHE_ROOT%" --repo-id "%FUSION_JTP3_MODEL_ID%" %PREFETCH_OPENCLIP_ARG% %PREFETCH_WAIFU_ARG%
+%RUN_PY% -X utf8 runtime\prefetch_jtp3.py --root "%FUSION_MODEL_CACHE_ROOT%" --repo-id "%FUSION_JTP3_MODEL_ID%" %PREFETCH_OPENCLIP_ARG% %PREFETCH_WAIFU_ARG%
 if errorlevel 1 exit /b 1
 exit /b 0

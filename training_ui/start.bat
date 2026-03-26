@@ -15,17 +15,40 @@ echo [training_ui] model cache root: %FUSION_MODEL_CACHE_ROOT%
 echo [training_ui] HF_HOME: %HF_HOME%
 echo [training_ui] HF_HUB_CACHE: %HF_HUB_CACHE%
 
-echo [training_ui 1/4] Checking Python...
+set "USE_EMBEDDED=0"
+set "PY_CMD="
+set "RUN_PY="
+set "EMBED_PY=%APP_DIR%runtime\python\python.exe"
+if exist "%EMBED_PY%" (
+  set "USE_EMBEDDED=1"
+  set "PY_CMD=%EMBED_PY%"
+  goto :python_ready
+)
+set "EMBED_PY=%APP_DIR%..\runtime\python\python.exe"
+if exist "%EMBED_PY%" (
+  set "USE_EMBEDDED=1"
+  set "PY_CMD=%EMBED_PY%"
+  goto :python_ready
+)
+
+echo [training_ui 1/4] Checking system Python...
 where py >nul 2>nul
 if %errorlevel%==0 (
   set "PY_CMD=py -3"
 ) else (
   where python >nul 2>nul
   if not %errorlevel%==0 (
-    echo [ERROR] Python not found. Install Python 3.10+ first.
+    echo [ERROR] Python not found. Install Python 3.10+ first, or provide runtime\python\python.exe
     goto :fail
   )
   set "PY_CMD=python"
+)
+
+:python_ready
+if "%USE_EMBEDDED%"=="1" (
+  echo [training_ui 1/4] Using embedded runtime: %PY_CMD%
+  set "RUN_PY=%PY_CMD%"
+  goto :install_deps
 )
 
 echo [training_ui 2/4] Creating virtual environment...
@@ -36,15 +59,17 @@ if not exist ".venv\Scripts\python.exe" (
     goto :fail
   )
 )
+set "RUN_PY=.venv\Scripts\python.exe"
 
+:install_deps
 echo [training_ui 3/4] Installing dependencies...
-".venv\Scripts\python.exe" -m pip install --upgrade pip
+%RUN_PY% -m pip install --upgrade pip
 if not %errorlevel%==0 (
   echo [ERROR] Failed to upgrade pip.
   goto :fail
 )
 
-".venv\Scripts\python.exe" -m pip install -r requirements.txt
+%RUN_PY% -m pip install -r requirements.txt
 if not %errorlevel%==0 (
   echo [ERROR] Failed to install dependencies.
   goto :fail
@@ -53,7 +78,7 @@ if not %errorlevel%==0 (
 set "WEBUI_HOST="
 set "WEBUI_PORT="
 set "WEBUI_RESOLVE_TMP=%TEMP%\training_ui_webui_%RANDOM%%RANDOM%.txt"
-".venv\Scripts\python.exe" "%APP_DIR%scripts\resolve_webui_port.py" --config "%APP_DIR%config.yaml" > "%WEBUI_RESOLVE_TMP%" 2>nul
+%RUN_PY% "%APP_DIR%scripts\resolve_webui_port.py" --config "%APP_DIR%config.yaml" > "%WEBUI_RESOLVE_TMP%" 2>nul
 if exist "%WEBUI_RESOLVE_TMP%" (
   for /f "usebackq tokens=1,2" %%a in ("%WEBUI_RESOLVE_TMP%") do (
     set "WEBUI_HOST=%%a"
@@ -71,7 +96,7 @@ echo [training_ui 4/4] Starting Training UI...
 echo Training UI: http://%OPEN_HOST%:%WEBUI_PORT%/
 start "" "http://%OPEN_HOST%:%WEBUI_PORT%/"
 
-".venv\Scripts\python.exe" "%APP_DIR%run.py" --config "%APP_DIR%config.yaml" --host %WEBUI_HOST% --port %WEBUI_PORT%
+%RUN_PY% "%APP_DIR%run.py" --config "%APP_DIR%config.yaml" --host %WEBUI_HOST% --port %WEBUI_PORT%
 if not %errorlevel%==0 (
   echo [ERROR] Training UI process exited unexpectedly.
   goto :fail
