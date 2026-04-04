@@ -7,7 +7,8 @@
 3. 批量推理与单图推理（`infer_ui`）
 4. 便携批处理与分拣（`batch`）
 
-1k.safetensor图像配比
+我自己训练的模型[https://huggingface.co/](https://huggingface.co/lse14/lse14-scorer)
+图像配比
 - `0.2` Danbooru 图像
 - `0.4` e621 图像
 - `0.4` 本地图像
@@ -140,6 +141,12 @@ This repository provides an end-to-end aesthetic scoring workflow:
 2. Training (`training_ui`)
 3. Batch + single-image inference (`infer_ui`)
 4. Portable batch processing and sorting (`batch`)
+
+model train by myself[https://huggingface.co/](https://huggingface.co/lse14/lse14-scorer)
+ratio:
+- `0.2` Danbooru 
+- `0.4` e621 
+- `0.4` local
 
 
 ### Repository Layout
