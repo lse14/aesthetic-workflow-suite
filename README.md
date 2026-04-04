@@ -142,8 +142,8 @@ This repository provides an end-to-end aesthetic scoring workflow:
 3. Batch + single-image inference (`infer_ui`)
 4. Portable batch processing and sorting (`batch`)
 
-model train by myself[https://huggingface.co/](https://huggingface.co/lse14/lse14-scorer)
-ratio:
+model train by myself: [https://huggingface.co/](https://huggingface.co/lse14/lse14-scorer)
+image ratio:
 - `0.2` Danbooru 
 - `0.4` e621 
 - `0.4` local
