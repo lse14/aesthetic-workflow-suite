@@ -8,6 +8,7 @@
 4. 便携批处理与分拣（`batch`）
 
 我自己训练的模型[https://huggingface.co/](https://huggingface.co/lse14/lse14-scorer)
+
 图像配比
 - `0.2` Danbooru 图像
 - `0.4` e621 图像
