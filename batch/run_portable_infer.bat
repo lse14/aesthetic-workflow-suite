@@ -1,11 +1,10 @@
 @echo off
-setlocal EnableExtensions
+setlocal EnableExtensions EnableDelayedExpansion
 cd /d "%~dp0"
 
-set "PY_CMD="
 set "RUN_PY="
-set "USE_EMBEDDED=0"
 set "FAIL_REASON="
+set "PYTHONNOUSERSITE=1"
 if not defined FUSION_AUTO_FIX_CUDA_TORCH set "FUSION_AUTO_FIX_CUDA_TORCH=1"
 if not defined FUSION_PREFETCH_JTP3 set "FUSION_PREFETCH_JTP3=1"
 if not defined FUSION_PREFETCH_OPENCLIP set "FUSION_PREFETCH_OPENCLIP=1"
@@ -36,76 +35,25 @@ echo [portable] waifu-head path: %FUSION_WAIFU_V3_HEAD_PATH%
 echo [portable] Prefetch open-clip: %FUSION_PREFETCH_OPENCLIP%
 echo [portable] Prefetch waifu-head: %FUSION_PREFETCH_WAIFU_HEAD%
 
-set "EMBED_PY=%CD%\runtime\python\python.exe"
-if exist "%EMBED_PY%" (
-  set "USE_EMBEDDED=1"
-  set "PY_CMD=%EMBED_PY%"
-  set "RUN_PY=%EMBED_PY%"
-  echo [portable] using embedded runtime: %RUN_PY%
-  goto :install_deps
-)
-set "EMBED_PY=%CD%\..\runtime\python\python.exe"
-if exist "%EMBED_PY%" (
-  set "USE_EMBEDDED=1"
-  set "PY_CMD=%EMBED_PY%"
-  set "RUN_PY=%EMBED_PY%"
-  echo [portable] using embedded runtime: %RUN_PY%
-  goto :install_deps
-)
 set "EMBED_HELPER=%CD%\..\scripts\ensure_embedded_python.bat"
 if exist "%EMBED_HELPER%" (
   call "%EMBED_HELPER%" "%CD%\..\runtime\python"
   if not errorlevel 1 if defined EMBED_PYTHON_EXE (
-    set "USE_EMBEDDED=1"
-    set "PY_CMD=%EMBED_PYTHON_EXE%"
-    set "RUN_PY=%EMBED_PYTHON_EXE%"
-    echo [portable] using embedded runtime: %RUN_PY%
+    set "RUN_PY=!EMBED_PYTHON_EXE!"
+    echo [portable] using embedded runtime: !RUN_PY!
     goto :install_deps
   )
 )
-
-if exist ".venv\Scripts\python.exe" (
-  set "PY_CMD=.venv\Scripts\python.exe"
-  set "RUN_PY=.venv\Scripts\python.exe"
-  goto :install_deps
-)
-
-where py >nul 2>nul
-if not errorlevel 1 (
-  set "PY_CMD=py -3"
-) else (
-  where python >nul 2>nul
-  if errorlevel 1 (
-    set "FAIL_REASON=python_not_found"
-    goto :fail
-  )
-  set "PY_CMD=python"
-)
-
-echo [portable] creating .venv ...
-%PY_CMD% -m venv .venv
-if errorlevel 1 (
-  set "FAIL_REASON=venv_create_failed"
+set "RUN_PY=%CD%\..\runtime\python\python.exe"
+if not exist "%RUN_PY%" (
+  set "FAIL_REASON=embedded_python_unavailable"
   goto :fail
 )
-set "PY_CMD=.venv\Scripts\python.exe"
-set "RUN_PY=.venv\Scripts\python.exe"
+echo [portable] using embedded runtime: %RUN_PY%
 
 :install_deps
 echo [portable] install deps ...
 set "PIP_DISABLE_PIP_VERSION_CHECK=1"
-if exist ".venv\Lib\site-packages" (
-  for /d %%D in (".venv\Lib\site-packages\~ip*") do (
-    echo [portable] cleanup broken package metadata: %%~nxD
-    rmdir /S /Q "%%~fD" >nul 2>nul
-  )
-  for %%F in (".venv\Lib\site-packages\~ip*") do (
-    if exist "%%~fF" (
-      echo [portable] cleanup broken package metadata file: %%~nxF
-      del /Q "%%~fF" >nul 2>nul
-    )
-  )
-)
 %RUN_PY% -m pip install --upgrade pip
 if errorlevel 1 (
   set "FAIL_REASON=pip_upgrade_failed"
@@ -148,9 +96,8 @@ exit /b 0
 :fail
 echo.
 echo [ERROR] portable infer failed: %FAIL_REASON%
-if "%FAIL_REASON%"=="python_not_found" echo Fix: install Python 3.10+.
-if "%FAIL_REASON%"=="venv_create_failed" echo Fix: remove .venv and retry.
-if "%FAIL_REASON%"=="pip_upgrade_failed" echo Fix: run .venv\Scripts\python.exe -m pip install --upgrade pip
+if "%FAIL_REASON%"=="embedded_python_unavailable" echo Fix: check network and rerun to auto-download embedded runtime.
+if "%FAIL_REASON%"=="pip_upgrade_failed" echo Fix: rerun when network is stable.
 if "%FAIL_REASON%"=="pip_install_failed" echo Fix: ensure internet/proxy for pip, or preinstall wheels.
 if "%FAIL_REASON%"=="cuda_torch_fix_failed" echo Fix: install CUDA PyTorch manually or set FUSION_AUTO_FIX_CUDA_TORCH=0 to skip auto-fix.
 if "%FAIL_REASON%"=="prefetch_jtp3_failed" echo Fix: check network/HF token, or set FUSION_PREFETCH_JTP3=0 to skip prefetch.

@@ -28,6 +28,7 @@ logs/
 *.log
 tmp/
 temp/
+runtime/
 */__pycache__/
 __tmp*.py
 */__tmp*.py

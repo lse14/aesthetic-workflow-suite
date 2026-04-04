@@ -2,64 +2,24 @@
 setlocal EnableExtensions EnableDelayedExpansion
 set "APP_DIR=%~dp0"
 cd /d "%APP_DIR%"
-
-set "USE_EMBEDDED=0"
-set "PY_CMD="
 set "RUN_PY="
-set "EMBED_PY=%APP_DIR%runtime\python\python.exe"
-if exist "%EMBED_PY%" (
-  set "USE_EMBEDDED=1"
-  set "PY_CMD=%EMBED_PY%"
-  goto :python_ready
-)
-set "EMBED_PY=%APP_DIR%..\runtime\python\python.exe"
-if exist "%EMBED_PY%" (
-  set "USE_EMBEDDED=1"
-  set "PY_CMD=%EMBED_PY%"
-  goto :python_ready
-)
+set "PYTHONNOUSERSITE=1"
 set "EMBED_HELPER=%APP_DIR%..\scripts\ensure_embedded_python.bat"
 if exist "%EMBED_HELPER%" (
   call "%EMBED_HELPER%" "%APP_DIR%..\runtime\python"
-  if not errorlevel 1 if defined EMBED_PYTHON_EXE (
-    set "USE_EMBEDDED=1"
-    set "PY_CMD=%EMBED_PYTHON_EXE%"
-    goto :python_ready
-  )
+  if not errorlevel 1 if defined EMBED_PYTHON_EXE set "RUN_PY=!EMBED_PYTHON_EXE!"
 )
-
-echo [labeling_ui 1/4] Checking system Python...
-where py >nul 2>nul
-if %errorlevel%==0 (
-  set "PY_CMD=py -3"
-) else (
-  where python >nul 2>nul
-  if not %errorlevel%==0 (
-    echo [ERROR] Python not found. Install Python 3.10+ first, or provide runtime\python\python.exe
-    goto :fail
-  )
-  set "PY_CMD=python"
+if "%RUN_PY%"=="" (
+  set "RUN_PY=%APP_DIR%..\runtime\python\python.exe"
 )
-
-:python_ready
-if "%USE_EMBEDDED%"=="1" (
-  echo [labeling_ui 1/4] Using embedded runtime: %PY_CMD%
-  set "RUN_PY=%PY_CMD%"
-  goto :install_deps
+if not exist "%RUN_PY%" (
+  echo [ERROR] Embedded Python unavailable: %RUN_PY%
+  goto :fail
 )
-
-echo [labeling_ui 2/4] Creating virtual environment...
-if not exist ".venv\Scripts\python.exe" (
-  %PY_CMD% -m venv .venv
-  if not %errorlevel%==0 (
-    echo [ERROR] Failed to create .venv
-    goto :fail
-  )
-)
-set "RUN_PY=.venv\Scripts\python.exe"
+echo [labeling_ui 1/3] Using embedded runtime: %RUN_PY%
 
 :install_deps
-echo [labeling_ui 3/4] Installing dependencies...
+echo [labeling_ui 2/3] Installing dependencies...
 %RUN_PY% -m pip install --upgrade pip
 if not %errorlevel%==0 (
   echo [ERROR] Failed to upgrade pip.
@@ -89,7 +49,7 @@ if "%WEBUI_PORT%"=="" set "WEBUI_PORT=9100"
 set "OPEN_HOST=%WEBUI_HOST%"
 if /I "%OPEN_HOST%"=="0.0.0.0" set "OPEN_HOST=127.0.0.1"
 
-echo [labeling_ui 4/4] Starting Labeling UI...
+echo [labeling_ui 3/3] Starting Labeling UI...
 echo Labeling UI: http://%OPEN_HOST%:%WEBUI_PORT%/
 start "" /min %RUN_PY% "%APP_DIR%scripts\open_when_ready.py" --url "http://%OPEN_HOST%:%WEBUI_PORT%/" --health-url "http://%OPEN_HOST%:%WEBUI_PORT%/api/health" --timeout 120 --interval 0.8
 
@@ -109,3 +69,4 @@ exit /b 1
 
 :end
 endlocal
+

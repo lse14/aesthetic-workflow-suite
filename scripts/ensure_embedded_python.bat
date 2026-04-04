@@ -14,15 +14,26 @@ if /I "%PROCESSOR_ARCHITECTURE%"=="x86" set "ARCH_TAG=win32"
 set "ZIP_NAME=python-%EMBED_PY_VERSION%-embed-%ARCH_TAG%.zip"
 set "PY_URL=https://www.python.org/ftp/python/%EMBED_PY_VERSION%/%ZIP_NAME%"
 set "PY_EXE=%TARGET_DIR%\python.exe"
+set "TMP_ZIP=%TEMP%\%ZIP_NAME%"
+set "GET_PIP=%TEMP%\get-pip.py"
 
 if not exist "%TARGET_DIR%" mkdir "%TARGET_DIR%" >nul 2>nul
 
-if exist "%PY_EXE%" goto :configure
+if exist "%PY_EXE%" goto :healthcheck
+
+:download
+if exist "%TARGET_DIR%" rmdir /S /Q "%TARGET_DIR%" >nul 2>nul
+mkdir "%TARGET_DIR%" >nul 2>nul
 
 echo [embedded-python] downloading %ZIP_NAME% ...
-set "TMP_ZIP=%TEMP%\%ZIP_NAME%"
 powershell -NoProfile -ExecutionPolicy Bypass -Command ^
-  "$ErrorActionPreference='Stop'; Invoke-WebRequest -Uri '%PY_URL%' -OutFile '%TMP_ZIP%';"
+  "$ErrorActionPreference='Stop'; [Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri '%PY_URL%' -OutFile '%TMP_ZIP%';"
+if errorlevel 1 (
+  where curl.exe >nul 2>nul
+  if not errorlevel 1 (
+    curl.exe -L --fail --retry 3 --connect-timeout 15 -o "%TMP_ZIP%" "%PY_URL%"
+  )
+)
 if errorlevel 1 (
   echo [embedded-python] download failed: %PY_URL%
   goto :fail
@@ -43,6 +54,13 @@ if not exist "%PY_EXE%" (
   goto :fail
 )
 
+:healthcheck
+"%PY_EXE%" -c "import encodings; print('ok')" >nul 2>nul
+if errorlevel 1 (
+  echo [embedded-python] runtime broken ^(encodings missing^), re-downloading...
+  goto :download
+)
+
 :configure
 for %%F in ("%TARGET_DIR%\python*._pth") do (
   set "PTH_FILE=%%~fF"
@@ -53,15 +71,25 @@ set "PTH_FILE="
 :got_pth
 if not "%PTH_FILE%"=="" (
   powershell -NoProfile -ExecutionPolicy Bypass -Command ^
-    "$p='%PTH_FILE%'; $t=Get-Content -Raw -Encoding UTF8 $p; $t=$t -replace '(?m)^\s*#\s*import\s+site\s*$','import site'; Set-Content -Encoding UTF8 -NoNewline -Path $p -Value $t;"
+    "$p='%PTH_FILE%';" ^
+    "$t=Get-Content -Raw -Encoding UTF8 $p;" ^
+    "$t=$t -replace '^\uFEFF','';" ^
+    "$t=$t -replace '(?m)^\s*#\s*import\s+site\s*$','import site';" ^
+    "$enc=New-Object System.Text.UTF8Encoding($false);" ^
+    "[System.IO.File]::WriteAllText($p,$t,$enc);"
 )
 
 echo [embedded-python] ensuring pip ...
 "%PY_EXE%" -m pip --version >nul 2>nul
 if errorlevel 1 (
-  set "GET_PIP=%TEMP%\get-pip.py"
   powershell -NoProfile -ExecutionPolicy Bypass -Command ^
-    "$ErrorActionPreference='Stop'; Invoke-WebRequest -Uri 'https://bootstrap.pypa.io/get-pip.py' -OutFile '%GET_PIP%';"
+    "$ErrorActionPreference='Stop'; [Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri 'https://bootstrap.pypa.io/get-pip.py' -OutFile '%GET_PIP%';"
+  if errorlevel 1 (
+    where curl.exe >nul 2>nul
+    if not errorlevel 1 (
+      curl.exe -L --fail --retry 3 --connect-timeout 15 -o "%GET_PIP%" "https://bootstrap.pypa.io/get-pip.py"
+    )
+  )
   if errorlevel 1 (
     echo [embedded-python] get-pip download failed.
     goto :fail
