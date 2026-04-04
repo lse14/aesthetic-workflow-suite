@@ -66,22 +66,22 @@ exit /b 1
 
 :launch_labeling
 echo [start_all] launching labeling_ui...
-start "labeling_ui" cmd /k "cd /d \"%ROOT%labeling_ui\" && call start.bat"
+start "labeling_ui" /D "%ROOT%labeling_ui" cmd /k "call start.bat"
 exit /b 0
 
 :launch_training
 echo [start_all] launching training_ui...
-start "training_ui" cmd /k "cd /d \"%ROOT%training_ui\" && call start.bat"
+start "training_ui" /D "%ROOT%training_ui" cmd /k "call start.bat"
 exit /b 0
 
 :launch_infer
 echo [start_all] launching infer_ui...
-start "infer_ui" cmd /k "cd /d \"%ROOT%infer_ui\" && call start.bat"
+start "infer_ui" /D "%ROOT%infer_ui" cmd /k "call start.bat"
 exit /b 0
 
 :launch_batch
 echo [start_all] launching batch...
-start "batch" cmd /k "cd /d \"%ROOT%batch\" && call run_portable_infer.bat"
+start "batch" /D "%ROOT%batch" cmd /k "call run_portable_infer.bat"
 exit /b 0
 
 :launch_all
