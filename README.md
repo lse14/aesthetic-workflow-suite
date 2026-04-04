@@ -43,33 +43,23 @@ apps/
 - 回归输出映射到 `1~5` 分区间
 - 分类头通过阈值 `special_threshold` 计算 `special_tag`
 
-### 快速开始
+### 快速开始（推荐）
 
-推荐 Python 3.10+（Windows）。
-
-```bat
-cd /d d:\vscode\vibecode\apps
-py -3 -m venv .venv
-.venv\Scripts\activate
-pip install --upgrade pip
-pip install -r requirements.txt
-```
-
-启动服务：
+无需预装系统 Python，直接运行启动脚本即可：
 
 ```bat
 cd /d d:\vscode\vibecode\apps\labeling_ui
-py -3 run.py --config config.yaml
+start.bat
 ```
 
 ```bat
 cd /d d:\vscode\vibecode\apps\training_ui
-py -3 run.py --config config.yaml
+start.bat
 ```
 
 ```bat
 cd /d d:\vscode\vibecode\apps\infer_ui
-py -3 run.py --config config.yaml
+start.bat
 ```
 
 默认端口：
@@ -80,21 +70,20 @@ py -3 run.py --config config.yaml
 
 ### 嵌入式运行时（免系统 Python）
 
-四个启动脚本现在都支持优先使用内置 Python：
+四个启动脚本都使用嵌入式 Python（无系统 Python 回退）：
 
 - `labeling_ui/start.bat`
 - `training_ui/start.bat`
 - `infer_ui/start.bat`
 - `batch/run_portable_infer.bat`
 
-脚本会按顺序查找：
+首次运行逻辑：
 
 1. `<app>/runtime/python/python.exe`
 2. `../runtime/python/python.exe`
-3. 系统 Python（回退到原有 `.venv` 方案）
 
-也就是说，你可以把可携带 Python Runtime 放到 `runtime/python/`，用户无需先安装 Python。
-如果前两个路径都不存在，启动脚本会自动尝试下载并解压 embeddable Python 到 `runtime/python/`，然后继续安装依赖并启动。
+如果前两个路径都不存在，启动脚本会自动下载并解压 embeddable Python 到 `runtime/python/`，然后自动安装依赖并启动。
+也就是说，用户无需先安装系统 Python。
 
 ### 推理设备说明
 
@@ -180,33 +169,23 @@ At inference time:
 - Regression outputs are mapped to `1~5`
 - Classification probability + `special_threshold` determines `special_tag`
 
-### Quick Start
+### Quick Start (Recommended)
 
-Python 3.10+ (Windows recommended).
-
-```bat
-cd /d d:\vscode\vibecode\apps
-py -3 -m venv .venv
-.venv\Scripts\activate
-pip install --upgrade pip
-pip install -r requirements.txt
-```
-
-Start services:
+No system Python is required. Just run launchers:
 
 ```bat
 cd /d d:\vscode\vibecode\apps\labeling_ui
-py -3 run.py --config config.yaml
+start.bat
 ```
 
 ```bat
 cd /d d:\vscode\vibecode\apps\training_ui
-py -3 run.py --config config.yaml
+start.bat
 ```
 
 ```bat
 cd /d d:\vscode\vibecode\apps\infer_ui
-py -3 run.py --config config.yaml
+start.bat
 ```
 
 Default ports:
@@ -217,21 +196,20 @@ Default ports:
 
 ### Embedded Runtime (No System Python Required)
 
-All launchers now support embedded Python first:
+All launchers are embedded-Python-only (no system Python fallback):
 
 - `labeling_ui/start.bat`
 - `training_ui/start.bat`
 - `infer_ui/start.bat`
 - `batch/run_portable_infer.bat`
 
-Resolution order:
+First-run behavior:
 
 1. `<app>/runtime/python/python.exe`
 2. `../runtime/python/python.exe`
-3. System Python (fallback to existing `.venv` flow)
 
-So you can ship a portable Python runtime in `runtime/python/` and run without preinstalled Python.
-If the embedded runtime is missing, launchers will attempt to auto-download and extract embeddable Python into `runtime/python/` and continue.
+If runtime is missing, launchers auto-download and extract embeddable Python into `runtime/python/`, then install dependencies and start.
+Users do not need to preinstall Python.
 
 ### Inference Device Modes
 
