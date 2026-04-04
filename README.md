@@ -7,9 +7,9 @@
 3. 批量推理与单图推理（`infer_ui`）
 4. 便携批处理与分拣（`batch`）
 
-我自己训练的模型[https://huggingface.co/](https://huggingface.co/lse14/lse14-scorer)
+模型发布页：[lse14/lse14-scorer](https://huggingface.co/lse14/lse14-scorer)
 
-图像配比
+训练数据配比
 - `0.2` Danbooru 图像
 - `0.4` e621 图像
 - `0.4` 本地图像
@@ -46,14 +46,16 @@ apps/
 
 ### 快速开始（推荐）
 
-无需预装系统 Python，直接运行启动脚本即可：
+推荐使用仓库根目录启动器：
 
 ```bat
 cd /d <repo_root>
 start_all.bat
 ```
 
-`start_all.bat` 会先自动准备嵌入式 Python，再让用户选择启动 `labeling_ui / training_ui / infer_ui / batch`。
+`start_all.bat` 用于统一入口启动 `labeling_ui / training_ui / infer_ui / batch`。
+
+也可直接启动单个模块：
 
 ```bat
 cd /d <repo_root>\labeling_ui
@@ -78,20 +80,19 @@ start.bat
 
 ### 嵌入式运行时（免系统 Python）
 
-四个启动脚本都使用嵌入式 Python（无系统 Python 回退）：
+以下启动脚本均采用嵌入式 Python 运行（不回退系统 Python）：
 
 - `labeling_ui/start.bat`
 - `training_ui/start.bat`
 - `infer_ui/start.bat`
 - `batch/run_portable_infer.bat`
 
-首次运行逻辑：
+运行时查找顺序：
 
 1. `<app>/runtime/python/python.exe`
 2. `../runtime/python/python.exe`
 
-如果前两个路径都不存在，启动脚本会自动下载并解压 embeddable Python 到 `runtime/python/`，然后自动安装依赖并启动。
-也就是说，用户无需先安装系统 Python。
+若上述路径均不存在，启动脚本会自动下载并解压 embeddable Python 至 `runtime/python/`，随后安装依赖并启动服务。
 
 ### 推理设备说明
 
@@ -139,9 +140,9 @@ This repository provides an end-to-end aesthetic scoring workflow:
 3. Batch + single-image inference (`infer_ui`)
 4. Portable batch processing and sorting (`batch`)
 
-model train by myself: [https://huggingface.co/](https://huggingface.co/lse14/lse14-scorer)
+Model release page: [lse14/lse14-scorer](https://huggingface.co/lse14/lse14-scorer)
 
-image ratio:
+Training data ratio:
 - `0.2` Danbooru 
 - `0.4` e621 
 - `0.4` local
@@ -179,14 +180,16 @@ At inference time:
 
 ### Quick Start (Recommended)
 
-No system Python is required. Just run launchers:
+Use the root launcher as the default entrypoint:
 
 ```bat
 cd /d <repo_root>
 start_all.bat
 ```
 
-`start_all.bat` first prepares embedded Python, then lets users choose `labeling_ui / training_ui / infer_ui / batch`.
+`start_all.bat` provides a unified launcher for `labeling_ui / training_ui / infer_ui / batch`.
+
+You can also start each module directly:
 
 ```bat
 cd /d <repo_root>\labeling_ui
@@ -211,20 +214,19 @@ Default ports:
 
 ### Embedded Runtime (No System Python Required)
 
-All launchers are embedded-Python-only (no system Python fallback):
+The following launchers run on embedded Python only (no system Python fallback):
 
 - `labeling_ui/start.bat`
 - `training_ui/start.bat`
 - `infer_ui/start.bat`
 - `batch/run_portable_infer.bat`
 
-First-run behavior:
+Runtime resolution order:
 
 1. `<app>/runtime/python/python.exe`
 2. `../runtime/python/python.exe`
 
-If runtime is missing, launchers auto-download and extract embeddable Python into `runtime/python/`, then install dependencies and start.
-Users do not need to preinstall Python.
+If no runtime is found, launchers automatically download and extract embeddable Python into `runtime/python/`, then install dependencies and start services.
 
 ### Inference Device Modes
 
@@ -233,8 +235,6 @@ Users do not need to preinstall Python.
 - `gpu`: force GPU, auto-check CUDA/torch, auto-install torch runtime when missing
 
 ### Security & Privacy
-
-By default, this repo ignores:
 
 Keep private credentials in environment variables. Do not hardcode keys/tokens in config files.
 
