@@ -48,6 +48,13 @@ apps/
 无需预装系统 Python，直接运行启动脚本即可：
 
 ```bat
+cd /d d:\vscode\vibecode\apps
+start_all.bat
+```
+
+`start_all.bat` 会先自动准备嵌入式 Python，再让用户选择启动 `labeling_ui / training_ui / infer_ui / batch`。
+
+```bat
 cd /d d:\vscode\vibecode\apps\labeling_ui
 start.bat
 ```
@@ -172,6 +179,13 @@ At inference time:
 ### Quick Start (Recommended)
 
 No system Python is required. Just run launchers:
+
+```bat
+cd /d d:\vscode\vibecode\apps
+start_all.bat
+```
+
+`start_all.bat` first prepares embedded Python, then lets users choose `labeling_ui / training_ui / infer_ui / batch`.
 
 ```bat
 cd /d d:\vscode\vibecode\apps\labeling_ui
